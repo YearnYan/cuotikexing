@@ -1612,6 +1612,63 @@
                 .map(item => item.group);
         }
 
+        function getDefaultQaFigureDesc(subject, seq = 0) {
+            const normalizedSubject = String(subject || '');
+            if (normalizedSubject.includes('数学')) {
+                const presets = [
+                    '平面几何图：三角形ABC，D为BC中点，连接AD，标注∠A、∠B与线段长度关系',
+                    '平面直角坐标系图：抛物线与直线相交于A、B两点，标注原点O与关键坐标关系'
+                ];
+                return presets[seq % presets.length];
+            }
+            const presets = [
+                '示意图：标注关键点A、B、C与已知条件关系，图形清晰可判读',
+                '坐标示意图：标注关键点与线段关系，满足题目所需推理条件'
+            ];
+            return presets[seq % presets.length];
+        }
+
+        function ensureQaFigureCoverage(data, subject, requiredCount = 2) {
+            if (!data || !Array.isArray(data.questions)) return data;
+
+            const qaItems = [];
+            data.questions.forEach(group => {
+                if (!group || !Array.isArray(group.items)) return;
+                const type = normalizeGroupType(group.type, group.title);
+                if (type === 'qa') {
+                    group.items.forEach(item => {
+                        if (item) qaItems.push(item);
+                    });
+                }
+            });
+
+            if (!qaItems.length) return data;
+
+            const targetCount = Math.max(0, Math.min(requiredCount, qaItems.length));
+            let currentFigureCount = qaItems.filter(item => String(item.figure || '').trim()).length;
+            let presetSeq = 0;
+
+            for (const item of qaItems) {
+                if (currentFigureCount >= targetCount) break;
+                if (!String(item.figure || '').trim()) {
+                    item.figure = getDefaultQaFigureDesc(subject, presetSeq++);
+                    const stemText = String(item.stem || '请完成题目作答。');
+                    item.stem = /如图所示/.test(stemText) ? stemText : `如图所示，${stemText}`;
+                    currentFigureCount += 1;
+                }
+            }
+
+            const figureQaItems = qaItems.filter(item => String(item.figure || '').trim()).slice(0, targetCount);
+            figureQaItems.forEach(item => {
+                const stemText = String(item.stem || '');
+                if (!/如图所示/.test(stemText)) {
+                    item.stem = `如图所示，${stemText}`;
+                }
+            });
+
+            return data;
+        }
+
         function escapeHtml(value) {
             return String(value ?? '')
                 .replace(/&/g, '&amp;')
@@ -1822,6 +1879,10 @@
             const totalScoreTarget = 150;
             const objectiveScore = qCount.choice * 5 + qCount.blank * 5;
             const qaTotalScore = Math.max(qCount.qa * 10, totalScoreTarget - objectiveScore);
+            const requiredQaFigureCount = Math.min(2, Math.max(1, qCount.qa));
+            const qaFigureRule = requiredQaFigureCount >= 2
+                ? '解答题中至少2道必须是“如图所示”的带图形题。'
+                : '解答题中至少1道必须是“如图所示”的带图形题。';
 
             try {
                 const prompt = `你是一个${grade}${subject}资深教师。请出一份关于"${topic}"的${examTypeName}。
@@ -1842,6 +1903,7 @@
 【图片要求 - 非常重要】：
 - 如果题目需要配图，请在该题目中添加 "figure" 字段
 - figure字段必须包含详细的图形描述，以便系统能准确生成图形
+- ${qaFigureRule}
 - 描述要具体明确，包括：
   * 几何图形：点的名称、边的关系、角度标注（如"直角三角形ABC，其中角B为直角，AB=3，BC=4"）
   * 立体图形：形状、堆叠方式、数量（如"3×3×2的立方体堆叠，共18个小立方体"）
@@ -1863,6 +1925,7 @@
 - 每道题目的stem字段必须包含完整的题目内容
 - 选择题的options数组必须包含4个完整选项
 - 每道解答题必须返回 score（分值）与 answerSpaceLines（建议留白行数，4~14行）
+- 前${requiredQaFigureCount}道解答题必须包含figure字段，且stem中必须出现“如图所示”
 - 不要返回空字段或undefined
 
 要求严格返回以下JSON格式：
@@ -1901,7 +1964,8 @@
             "totalScore": ${qaTotalScore},
             "instruction": "解答下列各题必须写出必要的步骤。",
             "items": [
-                { "index": ${qCount.blank + qCount.choice + 1}, "score": 12, "answerSpaceLines": 8, "stem": "完整的解答题内容", "figure": "需要的图形描述" }
+                { "index": ${qCount.blank + qCount.choice + 1}, "score": 12, "answerSpaceLines": 8, "stem": "如图所示，完整的解答题内容", "figure": "几何图形描述1" },
+                { "index": ${qCount.blank + qCount.choice + 2}, "score": 12, "answerSpaceLines": 8, "stem": "如图所示，完整的解答题内容", "figure": "几何图形描述2" }
             ]
         }
     ],
@@ -1923,6 +1987,7 @@
                 const jsonMatch = content.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     const data = JSON.parse(jsonMatch[0]);
+                    ensureQaFigureCoverage(data, subject, requiredQaFigureCount);
                     renderExam(data);
                 } else {
                     alert("AI生成格式错误，请重试");
@@ -2101,6 +2166,42 @@
                 if (answerBlock) answerBlock.remove();
             }
 
+            // 将答题留白区转换为Word稳定识别的表格空白行，避免div高度在Word中丢失
+            const writeSpaces = clonedPaper.querySelectorAll('.q-write-space');
+            writeSpaces.forEach(space => {
+                const lines = Math.min(18, Math.max(4, toPositiveInt(space.getAttribute('data-lines'), 6)));
+                const table = document.createElement('table');
+                table.className = 'word-write-space';
+                table.setAttribute('role', 'presentation');
+                table.setAttribute('cellpadding', '0');
+                table.setAttribute('cellspacing', '0');
+                table.setAttribute('border', '0');
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.style.tableLayout = 'fixed';
+                table.style.marginTop = '6pt';
+                table.style.msoTableLspace = '0pt';
+                table.style.msoTableRspace = '0pt';
+
+                for (let i = 0; i < lines; i += 1) {
+                    const tr = document.createElement('tr');
+                    tr.style.height = '20pt';
+                    tr.style.msoHeightSource = 'userset';
+                    tr.style.msoHeightRule = 'exactly';
+                    const td = document.createElement('td');
+                    td.className = 'word-write-cell';
+                    td.innerHTML = '&nbsp;';
+                    td.style.padding = '0';
+                    td.style.border = 'none';
+                    td.style.fontSize = '1pt';
+                    td.style.lineHeight = '1pt';
+                    td.style.msoLineHeightRule = 'exactly';
+                    tr.appendChild(td);
+                    table.appendChild(tr);
+                }
+                space.parentNode.replaceChild(table, space);
+            });
+
             const svgElements = clonedPaper.querySelectorAll('svg');
 
             for (const svg of svgElements) {
@@ -2232,6 +2333,20 @@
                             break-inside: avoid;
                             page-break-inside: avoid;
                             mso-height-source: userset;
+                            mso-line-height-rule: exactly;
+                        }
+                        .word-write-space {
+                            width: 100%;
+                            border-collapse: collapse;
+                            table-layout: fixed;
+                            margin-top: 6pt;
+                        }
+                        .word-write-space .word-write-cell {
+                            height: 20pt;
+                            border: none;
+                            padding: 0;
+                            font-size: 1pt;
+                            line-height: 1pt;
                             mso-line-height-rule: exactly;
                         }
                         .answer-key { 
