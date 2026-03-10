@@ -658,16 +658,9 @@
                 <div>
                     <div class="section-title">科目选择</div>
                     <select id="subject" onchange="onSubjectOrGradeChange()">
-                        <optgroup label="小学科目">
-                            <option value="语文">语文</option>
-                            <option value="数学" selected>数学</option>
-                            <option value="英语">英语</option>
-                            <option value="道德与法治">道德与法治</option>
-                            <option value="科学">科学</option>
-                        </optgroup>
                         <optgroup label="初中科目">
                             <option value="语文">语文</option>
-                            <option value="数学">数学</option>
+                            <option value="数学" selected>数学</option>
                             <option value="英语">英语</option>
                             <option value="物理">物理</option>
                             <option value="化学">化学</option>
@@ -693,14 +686,6 @@
                 <div>
                     <div class="section-title">年级选择</div>
                     <select id="grade" onchange="onSubjectOrGradeChange()">
-                        <optgroup label="小学">
-                            <option value="小学一年级">小学一年级</option>
-                            <option value="小学二年级">小学二年级</option>
-                            <option value="小学三年级">小学三年级</option>
-                            <option value="小学四年级">小学四年级</option>
-                            <option value="小学五年级">小学五年级</option>
-                            <option value="小学六年级">小学六年级</option>
-                        </optgroup>
                         <optgroup label="初中">
                             <option value="初中一年级">初中一年级</option>
                             <option value="初中二年级">初中二年级</option>
@@ -1332,19 +1317,21 @@
             const topicSelect = document.getElementById('topicSelect');
 
             topicSelect.innerHTML = '<option value="">-- 请选择知识点 --</option>';
+            const defaultTopicOption = document.createElement('option');
+            defaultTopicOption.value = '真题模拟';
+            defaultTopicOption.textContent = '真题模拟';
+            topicSelect.appendChild(defaultTopicOption);
 
             const topics = KNOWLEDGE_BASE[grade]?.[subject] || [];
-
-            if (topics.length === 0) {
-                topicSelect.innerHTML = '<option value="">-- 该科目暂无预设知识点，请自定义输入 --</option>';
-            } else {
-                topics.forEach(topic => {
+            const uniqueTopics = Array.from(new Set(topics.filter(topic => String(topic || '').trim())));
+            uniqueTopics
+                .filter(topic => topic !== '真题模拟')
+                .forEach(topic => {
                     const option = document.createElement('option');
                     option.value = topic;
                     option.textContent = topic;
                     topicSelect.appendChild(option);
                 });
-            }
 
             saveSettings();
         }
@@ -1450,8 +1437,18 @@
             if (saved) {
                 try {
                     const settings = JSON.parse(saved);
-                    if (settings.subject) document.getElementById('subject').value = settings.subject;
-                    if (settings.grade) document.getElementById('grade').value = settings.grade;
+                    if (settings.subject) {
+                        const subjectEl = document.getElementById('subject');
+                        if ([...subjectEl.options].some(option => option.value === settings.subject)) {
+                            subjectEl.value = settings.subject;
+                        }
+                    }
+                    if (settings.grade) {
+                        const gradeEl = document.getElementById('grade');
+                        if ([...gradeEl.options].some(option => option.value === settings.grade)) {
+                            gradeEl.value = settings.grade;
+                        }
+                    }
                     if (settings.difficulty) {
                         document.getElementById('difficulty').value = settings.difficulty;
                         document.getElementById('difficultyValue').textContent = settings.difficulty;
@@ -1536,7 +1533,85 @@
             9: { hint: 'Lv9：高考压轴以上，加入竞赛风格变式。', prompt: '高考压轴以上难度：整体高于高考真题，需加入更复杂的构造、参数讨论或反证思路。' },
             10: { hint: 'Lv10：奥数/竞赛级，明显高于高考真题。', prompt: '奥数竞赛难度：题目应明显高于高考真题，达到省级竞赛或奥数训练强度。' }
         };
-        const QUESTION_RATIO = { blank: 12, choice: 4, qa: 5 };
+        const SUBJECT_SCHEMA_ALIAS = {
+            道德与法治: '政治',
+            科学: '物理'
+        };
+        const SUBJECT_EXAM_SCHEMAS = {
+            数学: {
+                note: '高考数学常见结构：填空题、选择题、解答题',
+                sections: [
+                    { key: 'blank', name: '填空题', type: 'blank', weight: 12, minCount: 1, perQuestionScore: 5, instruction: '考生应在答题纸的相应位置直接填写结果。' },
+                    { key: 'choice', name: '选择题', type: 'choice', weight: 4, minCount: 1, perQuestionScore: 5, instruction: '每题有且仅有一个正确选项。' },
+                    { key: 'qa', name: '解答题', type: 'qa', weight: 5, minCount: 1, perQuestionScore: 14, instruction: '解答下列各题必须写出必要的步骤。' }
+                ]
+            },
+            语文: {
+                note: '高考语文常见结构：现代文阅读、古诗文阅读、语言文字运用、写作',
+                sections: [
+                    { key: 'modern_reading', name: '现代文阅读', type: 'choice', weight: 6, minCount: 1, perQuestionScore: 3, instruction: '阅读材料后完成信息提取与理解判断。' },
+                    { key: 'classical_reading', name: '古诗文阅读', type: 'qa', weight: 5, minCount: 1, perQuestionScore: 6, instruction: '含文言文理解、古诗词鉴赏或翻译分析。' },
+                    { key: 'language_use', name: '语言文字运用', type: 'blank', weight: 4, minCount: 1, perQuestionScore: 3, instruction: '考查词句表达、语段补写、语病辨析。' },
+                    { key: 'writing', name: '写作', type: 'qa', weight: 1, minCount: 1, perQuestionScore: 30, instruction: '给出作文任务，明确立意与写作要求。' }
+                ]
+            },
+            英语: {
+                note: '高考英语常见结构：阅读理解、完形填空、语法填空、应用文写作、读后续写',
+                sections: [
+                    { key: 'reading', name: '阅读理解', type: 'choice', weight: 8, minCount: 1, perQuestionScore: 2, instruction: '阅读语篇并完成选择题。' },
+                    { key: 'cloze', name: '完形填空', type: 'choice', weight: 4, minCount: 1, perQuestionScore: 2, instruction: '在语境中完成词义与逻辑辨析。' },
+                    { key: 'grammar_fill', name: '语法填空', type: 'blank', weight: 5, minCount: 1, perQuestionScore: 2, instruction: '根据语篇完成词形变化和语法填写。' },
+                    { key: 'applied_writing', name: '应用文写作', type: 'qa', weight: 2, minCount: 1, perQuestionScore: 15, instruction: '完成邮件、通知等应用文写作。' },
+                    { key: 'continuation_writing', name: '读后续写', type: 'qa', weight: 2, minCount: 1, perQuestionScore: 20, instruction: '根据给定文本完成情节续写。' }
+                ]
+            },
+            物理: {
+                note: '高考物理常见结构：单选题、多选题、实验探究题、计算题',
+                sections: [
+                    { key: 'single_choice', name: '单项选择题', type: 'choice', weight: 7, minCount: 1, perQuestionScore: 4, instruction: '每题仅有一个正确选项。' },
+                    { key: 'multi_choice', name: '多项选择题', type: 'choice', weight: 4, minCount: 1, perQuestionScore: 5, instruction: '每题有多个正确选项，需完整判断。' },
+                    { key: 'experiment', name: '实验探究题', type: 'qa', weight: 3, minCount: 1, perQuestionScore: 8, instruction: '围绕实验设计、数据处理和误差分析作答。' },
+                    { key: 'calculation', name: '计算题', type: 'qa', weight: 5, minCount: 1, perQuestionScore: 10, instruction: '要求列式推导并写出关键过程。' }
+                ]
+            },
+            化学: {
+                note: '高考化学常见结构：选择题、化学原理综合题、实验探究题、工艺流程与推断题',
+                sections: [
+                    { key: 'choice', name: '选择题', type: 'choice', weight: 10, minCount: 1, perQuestionScore: 3, instruction: '覆盖基础概念、反应规律与图表判断。' },
+                    { key: 'principle', name: '化学原理综合题', type: 'qa', weight: 3, minCount: 1, perQuestionScore: 8, instruction: '涉及平衡、电化学、速率等综合分析。' },
+                    { key: 'experiment', name: '实验探究题', type: 'qa', weight: 3, minCount: 1, perQuestionScore: 10, instruction: '考查实验方案、现象解释与结论推断。' },
+                    { key: 'inference', name: '工艺流程与推断题', type: 'qa', weight: 3, minCount: 1, perQuestionScore: 10, instruction: '结合流程图或转化关系进行推断。' }
+                ]
+            },
+            生物: {
+                note: '高考生物常见结构：选择题、非选择综合题',
+                sections: [
+                    { key: 'choice', name: '选择题', type: 'choice', weight: 12, minCount: 1, perQuestionScore: 2, instruction: '考查概念辨析、图表阅读和实验变量判断。' },
+                    { key: 'non_choice', name: '非选择题', type: 'qa', weight: 7, minCount: 1, perQuestionScore: 10, instruction: '含遗传、生态、调节与实验分析综合题。' }
+                ]
+            },
+            地理: {
+                note: '高考地理常见结构：选择题、综合题',
+                sections: [
+                    { key: 'choice', name: '选择题', type: 'choice', weight: 14, minCount: 1, perQuestionScore: 3, instruction: '突出区域认知、图表判读与时空分析。' },
+                    { key: 'comprehensive', name: '综合题', type: 'qa', weight: 5, minCount: 1, perQuestionScore: 12, instruction: '围绕区域、产业、环境与地理过程综合作答。' }
+                ]
+            },
+            历史: {
+                note: '高考历史常见结构：选择题、材料分析题',
+                sections: [
+                    { key: 'choice', name: '选择题', type: 'choice', weight: 16, minCount: 1, perQuestionScore: 3, instruction: '考查史实理解、时序判断和史料解读。' },
+                    { key: 'material', name: '材料分析题', type: 'qa', weight: 5, minCount: 1, perQuestionScore: 12, instruction: '基于材料进行概括、比较与论证。' }
+                ]
+            },
+            政治: {
+                note: '高考政治常见结构：选择题、主观题',
+                sections: [
+                    { key: 'choice', name: '选择题', type: 'choice', weight: 16, minCount: 1, perQuestionScore: 3, instruction: '覆盖经济、政治、文化、哲学与时政。' },
+                    { key: 'subjective', name: '主观题', type: 'qa', weight: 5, minCount: 1, perQuestionScore: 12, instruction: '基于材料进行观点阐述、理论分析与对策作答。' }
+                ]
+            }
+        };
         const GROUP_DEFAULTS = {
             choice: {
                 name: '选择题',
@@ -1563,49 +1638,144 @@
             return DIFFICULTY_PROFILES[safeLevel] || DIFFICULTY_PROFILES[5];
         }
 
-        function distributeQuestionCounts(totalCount, ratioMap = QUESTION_RATIO) {
-            const total = Math.max(3, Number(totalCount) || 21);
-            const types = ['blank', 'choice', 'qa'];
-            const ratioSum = types.reduce((sum, type) => sum + (ratioMap[type] || 0), 0) || 1;
-
-            const rawCounts = {};
-            const rounded = {};
-            types.forEach(type => {
-                rawCounts[type] = (total * (ratioMap[type] || 0)) / ratioSum;
-                rounded[type] = Math.max(0, Math.round(rawCounts[type]));
-            });
-
-            let diff = total - types.reduce((sum, type) => sum + rounded[type], 0);
-            while (diff !== 0) {
-                const needIncrease = diff > 0;
-                const candidates = types
-                    .filter(type => needIncrease || rounded[type] > 0)
-                    .sort((a, b) => {
-                        const scoreA = needIncrease ? (rawCounts[a] - rounded[a]) : (rounded[a] - rawCounts[a]);
-                        const scoreB = needIncrease ? (rawCounts[b] - rounded[b]) : (rounded[b] - rawCounts[b]);
-                        return scoreB - scoreA;
-                    });
-                const target = candidates[0] || 'blank';
-                rounded[target] += needIncrease ? 1 : -1;
-                diff += needIncrease ? -1 : 1;
-            }
-
-            return {
-                blank: rounded.blank,
-                choice: rounded.choice,
-                qa: rounded.qa
-            };
+        function normalizeSubject(subject) {
+            return SUBJECT_SCHEMA_ALIAS[String(subject || '').trim()] || String(subject || '').trim();
         }
 
-        function sortGroupsByExamOrder(groups) {
-            const orderMap = { blank: 0, choice: 1, qa: 2 };
+        function getSubjectExamSchema(subject) {
+            const normalized = normalizeSubject(subject);
+            return SUBJECT_EXAM_SCHEMAS[normalized] || SUBJECT_EXAM_SCHEMAS['数学'];
+        }
+
+        function distributeSectionCounts(totalCount, sections) {
+            const safeSections = Array.isArray(sections) ? sections : [];
+            const total = Math.max(safeSections.length || 1, Number(totalCount) || 21);
+            const ratioSum = safeSections.reduce((sum, section) => sum + (section.weight || 1), 0) || 1;
+            const rawCounts = {};
+            const rounded = {};
+
+            safeSections.forEach(section => {
+                const key = section.key;
+                rawCounts[key] = (total * (section.weight || 1)) / ratioSum;
+                const minCount = Math.max(0, Number(section.minCount) || 0);
+                rounded[key] = Math.max(minCount, Math.round(rawCounts[key]));
+            });
+
+            let diff = total - safeSections.reduce((sum, section) => sum + (rounded[section.key] || 0), 0);
+            while (diff !== 0) {
+                const needIncrease = diff > 0;
+                const candidates = safeSections
+                    .filter(section => {
+                        const count = rounded[section.key] || 0;
+                        const minCount = Math.max(0, Number(section.minCount) || 0);
+                        return needIncrease || count > minCount;
+                    })
+                    .sort((a, b) => {
+                        const scoreA = needIncrease
+                            ? (rawCounts[a.key] - (rounded[a.key] || 0))
+                            : ((rounded[a.key] || 0) - rawCounts[a.key]);
+                        const scoreB = needIncrease
+                            ? (rawCounts[b.key] - (rounded[b.key] || 0))
+                            : ((rounded[b.key] || 0) - rawCounts[b.key]);
+                        return scoreB - scoreA;
+                    });
+                if (!candidates.length) break;
+                const target = candidates[0].key;
+                rounded[target] = (rounded[target] || 0) + (needIncrease ? 1 : -1);
+                diff += needIncrease ? -1 : 1;
+            }
+            return rounded;
+        }
+
+        function buildSubjectSectionPlans(subject, totalQuestionCount) {
+            const subjectSchema = getSubjectExamSchema(subject);
+            const countMap = distributeSectionCounts(totalQuestionCount, subjectSchema.sections);
+            const plans = subjectSchema.sections
+                .map(section => ({
+                    ...section,
+                    count: Math.max(0, countMap[section.key] || 0)
+                }))
+                .filter(section => section.count > 0);
+            return { subjectSchema, plans };
+        }
+
+        function buildQuestionExampleGroups(plans, requiredQaFigureCount) {
+            let indexCursor = 1;
+            let figureRemain = requiredQaFigureCount;
+            return plans.map((section, idx) => {
+                const sectionLabel = getSectionLabel(idx);
+                const perScore = Number(section.perQuestionScore) || 5;
+                const totalScore = Math.round(section.count * perScore);
+                const scoreText = `每题${perScore}分，共${totalScore}分。`;
+                const title = `${sectionLabel}、${section.name}（本大题共${section.count}题，${scoreText}${section.instruction}）`;
+
+                const items = [];
+                if (section.type === 'choice') {
+                    items.push({
+                        index: indexCursor,
+                        stem: `${section.name}示例题目`,
+                        options: ['A. 选项1', 'B. 选项2', 'C. 选项3', 'D. 选项4']
+                    });
+                } else if (section.type === 'blank') {
+                    items.push({
+                        index: indexCursor,
+                        stem: `${section.name}示例题目______。`
+                    });
+                } else {
+                    const qaItem = {
+                        index: indexCursor,
+                        score: perScore,
+                        answerSpaceLines: 8,
+                        stem: `${section.name}示例题目，请写出必要步骤。`
+                    };
+                    if (figureRemain > 0) {
+                        qaItem.figure = '图形描述示例：请给出清晰可判读的示意图';
+                        qaItem.stem = `如图所示，${qaItem.stem}`;
+                        figureRemain -= 1;
+                    }
+                    items.push(qaItem);
+                }
+
+                indexCursor += section.count;
+                return {
+                    sectionKey: section.key,
+                    sectionName: section.name,
+                    type: section.type,
+                    title,
+                    perQuestionScore: perScore,
+                    totalScore,
+                    instruction: section.instruction,
+                    items
+                };
+            });
+        }
+
+        function detectSectionKey(group, subjectSchema) {
+            const explicitKey = String(group?.sectionKey || '').trim();
+            if (explicitKey && subjectSchema.sections.some(section => section.key === explicitKey)) {
+                return explicitKey;
+            }
+            const titleText = String(group?.title || '');
+            const byName = subjectSchema.sections.find(section => titleText.includes(section.name));
+            if (byName) return byName.key;
+            const groupType = normalizeGroupType(group?.type, group?.title);
+            const byType = subjectSchema.sections.find(section => section.type === groupType);
+            return byType ? byType.key : '';
+        }
+
+        function sortGroupsByExamOrder(groups, subject) {
+            const subjectSchema = getSubjectExamSchema(subject);
+            const orderMap = {};
+            subjectSchema.sections.forEach((section, index) => {
+                orderMap[section.key] = index;
+            });
             return [...groups]
                 .map((group, index) => ({ group, index }))
                 .sort((a, b) => {
-                    const typeA = normalizeGroupType(a.group?.type, a.group?.title);
-                    const typeB = normalizeGroupType(b.group?.type, b.group?.title);
-                    const orderA = orderMap[typeA] ?? 99;
-                    const orderB = orderMap[typeB] ?? 99;
+                    const keyA = detectSectionKey(a.group, subjectSchema);
+                    const keyB = detectSectionKey(b.group, subjectSchema);
+                    const orderA = orderMap[keyA] ?? 99;
+                    const orderB = orderMap[keyB] ?? 99;
                     if (orderA !== orderB) return orderA - orderB;
                     return a.index - b.index;
                 })
@@ -1737,13 +1907,18 @@
             return SECTION_LABELS[index] || `${index + 1}`;
         }
 
-        function resolveGroupTitle(group, groupIndex) {
+        function resolveGroupTitle(group, groupIndex, subjectSchema) {
             const groupType = normalizeGroupType(group?.type, group?.title);
             const defaults = GROUP_DEFAULTS[groupType] || GROUP_DEFAULTS.qa;
+            const sectionKey = subjectSchema ? detectSectionKey(group, subjectSchema) : '';
+            const sectionConfig = subjectSchema?.sections?.find(section => section.key === sectionKey) || null;
             const sectionLabel = getSectionLabel(groupIndex);
             const items = Array.isArray(group?.items) ? group.items : [];
             const itemCount = items.length;
-            const perItemScore = toPositiveInt(group?.perQuestionScore ?? group?.scorePerQuestion, defaults.score);
+            const perItemScore = toPositiveInt(
+                group?.perQuestionScore ?? group?.scorePerQuestion,
+                toPositiveInt(sectionConfig?.perQuestionScore, defaults.score)
+            );
             const explicitTotal = toPositiveInt(group?.totalScore, null);
 
             const itemScores = items
@@ -1758,12 +1933,13 @@
             }
 
             const customInstruction = String(group?.instruction || '').trim();
-            const instructionText = customInstruction || defaults.instruction;
+            const instructionText = customInstruction || sectionConfig?.instruction || defaults.instruction;
             const canUseUniformScore = itemScores.length <= 1 || new Set(itemScores).size <= 1;
             const scoreText = canUseUniformScore
                 ? `每题${perItemScore}分，共${totalScore}分。`
                 : `共${totalScore}分。`;
-            return `${sectionLabel}、${defaults.name}（本大题共${itemCount}题，${scoreText}${instructionText}）`;
+            const displayName = sectionConfig?.name || group?.sectionName || defaults.name;
+            return `${sectionLabel}、${displayName}（本大题共${itemCount}题，${scoreText}${instructionText}）`;
         }
 
         function resolvePaperHeader(data, displayTitle) {
@@ -1871,18 +2047,35 @@
                 return;
             }
 
-            // 根据试卷类型和页数计算题量
+            const normalizedSubject = normalizeSubject(subject);
             const examTypeName = EXAM_TYPE_NAMES[examType] || '考试';
-            const qCount = distributeQuestionCounts(questionCount, QUESTION_RATIO);
             const difficultyProfile = getDifficultyProfile(difficulty);
             const difficultyDesc = difficultyProfile.hint;
-            const totalScoreTarget = 150;
-            const objectiveScore = qCount.choice * 5 + qCount.blank * 5;
-            const qaTotalScore = Math.max(qCount.qa * 10, totalScoreTarget - objectiveScore);
-            const requiredQaFigureCount = Math.min(2, Math.max(1, qCount.qa));
-            const qaFigureRule = requiredQaFigureCount >= 2
-                ? '解答题中至少2道必须是“如图所示”的带图形题。'
-                : '解答题中至少1道必须是“如图所示”的带图形题。';
+            const { subjectSchema, plans } = buildSubjectSectionPlans(normalizedSubject, questionCount);
+            const qaTotalCount = plans
+                .filter(section => section.type === 'qa')
+                .reduce((sum, section) => sum + section.count, 0);
+            const requiredQaFigureCount = normalizedSubject === '数学'
+                ? Math.min(2, Math.max(1, qaTotalCount))
+                : 0;
+            const qaFigureRule = requiredQaFigureCount > 0
+                ? `解答题中至少${requiredQaFigureCount}道必须是“如图所示”的带图形题。`
+                : '如题目需要图示推理，请提供明确figure字段与图形描述。';
+            const sectionRequirementText = plans
+                .map((section, idx) => `${idx + 1}. ${section.name}：${section.count}题（${section.instruction}）`)
+                .join('\n');
+            const exampleGroups = buildQuestionExampleGroups(plans, requiredQaFigureCount);
+            const formulaRule = normalizedSubject === '数学'
+                ? `【重要 - 数学公式格式】：
+- 禁止使用LaTeX格式（如 $\\frac{}{}$、$\\sqrt{}$、$\\times$ 等）
+- 必须使用普通文字和Unicode符号表示数学：
+  * 分数用斜杠：如 "x²/4"
+  * 根号用文字或符号：如 "√3" 或 "根号3"
+  * 乘号用 × 或 · ：如 "2×3"
+  * 指数用上标符号：如 "x²" "y³"
+  * π用文字"π"`
+                : `【文字规范】：
+- 题目和选项需使用自然语言完整表达，不要使用占位符。`;
 
             try {
                 const prompt = `你是一个${grade}${subject}资深教师。请出一份关于"${topic}"的${examTypeName}。
@@ -1892,17 +2085,16 @@
 - 难度强化要求：${difficultyProfile.prompt}
 - 页数要求：${pageCount}页A4纸（每页约40-45行内容）
 - 试卷类型：${examTypeName}
+- 科目题型规范：${subjectSchema.note}
 - 版式要求：严格对齐“高考数学空白卷”样式，包含三行标题、题型说明、分值标注、解答题留白。
-- 总题量：${questionCount}题（按填空:选择:解答 = 12:4:5 四舍五入分配）
+- 总题量：${questionCount}题（按该科目高考题型分配）
 
-【题量要求】：
-1. 填空题：${qCount.blank}道（每题1-2个空，题干必须完整）
-2. 选择题：${qCount.choice}道（每题题干适中，4个选项，每个选项必须有具体内容）
-3. 解答题：${qCount.qa}道（每题必须有完整题干和小问）
+【题型要求（按科目高考结构）】：
+${sectionRequirementText}
 
 【图片要求 - 非常重要】：
-- 如果题目需要配图，请在该题目中添加 "figure" 字段
-- figure字段必须包含详细的图形描述，以便系统能准确生成图形
+- 如果题目需要配图，请在该题目中添加"figure"字段
+- figure字段必须包含详细且可绘制的图形描述
 - ${qaFigureRule}
 - 描述要具体明确，包括：
   * 几何图形：点的名称、边的关系、角度标注（如"直角三角形ABC，其中角B为直角，AB=3，BC=4"）
@@ -1911,21 +2103,12 @@
   * 实物图形：用哪些选项、物品特征（如"四个物品：A是圆形足球，B是长方体书本，C是正方体魔方，D是圆柱形茶叶罐"）
 - 不要使用模糊描述如"如图所示"，必须具体说明图形内容
 
-【重要 - 数学公式格式】：
-- 禁止使用LaTeX格式（如 $\frac{}{}$、$\sqrt{}$、$\times$ 等）
-- 必须使用普通文字和Unicode符号表示数学：
-  * 分数用斜杠：如 "x²/4" 而不是 "$\frac{x^2}{4}$"
-  * 根号用文字或符号：如 "√3" 或 "根号3" 而不是 "$\sqrt{3}$"
-  * 乘号用 × 或 · ：如 "2×3" 而不是 "$2\times3$"
-  * 指数用上标符号：如 "x²" "y³" 而不是 "$x^2$"
-  * π用文字"π"，不要用 "$\pi$"
-- 这是给学生看的试卷，必须是普通可读文字！
+${formulaRule}
 
 【其他要求】：
 - 每道题目的stem字段必须包含完整的题目内容
-- 选择题的options数组必须包含4个完整选项
-- 每道解答题必须返回 score（分值）与 answerSpaceLines（建议留白行数，4~14行）
-- 前${requiredQaFigureCount}道解答题必须包含figure字段，且stem中必须出现“如图所示”
+- choice类型的items必须提供4个完整options
+- qa类型的items必须返回score（分值）与answerSpaceLines（建议留白行数，4~14行）
 - 不要返回空字段或undefined
 
 要求严格返回以下JSON格式：
@@ -1936,40 +2119,8 @@
     "paperMeta": "（考试时间120分钟，满分150分）",
     "durationMinutes": 120,
     "totalScore": 150,
-    "questions": [
-        {
-            "type": "blank",
-            "title": "一、填空题（本大题共${qCount.blank}题，每题5分，共${qCount.blank * 5}分。考生应在答题纸的相应位置直接填写结果。）",
-            "perQuestionScore": 5,
-            "totalScore": ${qCount.blank * 5},
-            "instruction": "考生应在答题纸的相应位置直接填写结果。",
-            "items": [
-                { "index": 1, "stem": "具体题目内容______。" }
-            ]
-        },
-        {
-            "type": "choice",
-            "title": "二、选择题（本大题共${qCount.choice}题，每题5分，共${qCount.choice * 5}分。每题有且仅有一个正确选项。）",
-            "perQuestionScore": 5,
-            "totalScore": ${qCount.choice * 5},
-            "instruction": "每题有且仅有一个正确选项。",
-            "items": [
-                { "index": ${qCount.blank + 1}, "stem": "具体题目内容", "options": ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"] },
-                { "index": ${qCount.blank + 2}, "stem": "需要图形的题目（如图所示...）", "figure": "图形描述如：直角三角形ABC", "options": ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"] }
-            ]
-        },
-        {
-            "type": "qa",
-            "title": "三、解答题（本大题共${qCount.qa}题，共${qaTotalScore}分。解答下列各题必须写出必要的步骤。）",
-            "totalScore": ${qaTotalScore},
-            "instruction": "解答下列各题必须写出必要的步骤。",
-            "items": [
-                { "index": ${qCount.blank + qCount.choice + 1}, "score": 12, "answerSpaceLines": 8, "stem": "如图所示，完整的解答题内容", "figure": "几何图形描述1" },
-                { "index": ${qCount.blank + qCount.choice + 2}, "score": 12, "answerSpaceLines": 8, "stem": "如图所示，完整的解答题内容", "figure": "几何图形描述2" }
-            ]
-        }
-    ],
-    "answers": ["1. A [解析] 解析内容", "2. B [解析] 解析内容"]
+    "questions": ${JSON.stringify(exampleGroups, null, 4)},
+    "answers": ["1. 示例答案 [解析] 示例解析"]
 }`;
 
                 const response = await fetch(API_CONFIG.baseURL, {
@@ -1987,7 +2138,9 @@
                 const jsonMatch = content.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     const data = JSON.parse(jsonMatch[0]);
-                    ensureQaFigureCoverage(data, subject, requiredQaFigureCount);
+                    if (requiredQaFigureCount > 0) {
+                        ensureQaFigureCoverage(data, normalizedSubject, requiredQaFigureCount);
+                    }
                     renderExam(data);
                 } else {
                     alert("AI生成格式错误，请重试");
@@ -2024,15 +2177,22 @@
             let html = '';
             const figureTasks = [];
             const subject = document.getElementById('subject').value;
+            const normalizedSubject = normalizeSubject(subject);
+            const subjectSchema = getSubjectExamSchema(normalizedSubject);
 
             if (Array.isArray(data.questions)) {
-                const orderedGroups = sortGroupsByExamOrder(data.questions);
+                const orderedGroups = sortGroupsByExamOrder(data.questions, normalizedSubject);
                 orderedGroups.forEach((group, groupIndex) => {
                     if (!group || !Array.isArray(group.items)) return;
 
                     const groupType = normalizeGroupType(group.type, group.title);
-                    const groupTitle = resolveGroupTitle(group, groupIndex);
-                    const groupPerItemScore = toPositiveInt(group?.perQuestionScore ?? group?.scorePerQuestion, GROUP_DEFAULTS[groupType]?.score || 0);
+                    const sectionKey = detectSectionKey(group, subjectSchema);
+                    const sectionConfig = subjectSchema.sections.find(section => section.key === sectionKey);
+                    const groupTitle = resolveGroupTitle(group, groupIndex, subjectSchema);
+                    const groupPerItemScore = toPositiveInt(
+                        group?.perQuestionScore ?? group?.scorePerQuestion,
+                        toPositiveInt(sectionConfig?.perQuestionScore, GROUP_DEFAULTS[groupType]?.score || 0)
+                    );
                     const isSubjective = isSubjectiveGroup(groupType, group.title);
 
                     html += `<div class="question-group question-group--${groupType}" data-type="${groupType}">
