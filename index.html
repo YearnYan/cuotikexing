@@ -1,0 +1,2379 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全息试卷工厂</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-dark: #0a192f;
+            --bg-panel: #112240;
+            --line-blue: #64ffda;
+            --text-main: #ccd6f6;
+            --text-dim: #8892b0;
+            --paper-width: 210mm;
+            --paper-height: 297mm;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image:
+                linear-gradient(rgba(100, 255, 218, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100, 255, 218, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* 顶部导航栏 */
+        .top-nav {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--line-blue);
+            padding: 12px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-brand {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--line-blue);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 1px solid var(--line-blue);
+            color: var(--line-blue);
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(100, 255, 218, 0.2);
+        }
+
+        .nav-btn.primary {
+            background: var(--line-blue);
+            color: var(--bg-dark);
+        }
+
+        .nav-btn.primary:hover {
+            background: rgba(100, 255, 218, 0.8);
+        }
+
+        /* 主容器 */
+        .main-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1600px;
+            height: calc(100vh - 100px);
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 40px;
+        }
+
+        /* 左侧控制台 */
+        .console-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--text-dim);
+            border-top: 4px solid var(--line-blue);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow-y: auto;
+        }
+
+        .console-panel h1 {
+            font-size: 1.6rem;
+            color: var(--line-blue);
+            margin-bottom: 5px;
+        }
+
+        /* 积分显示栏 */
+        .credits-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(100, 255, 218, 0.1);
+            border: 1px solid var(--line-blue);
+            padding: 10px 15px;
+            border-radius: 4px;
+        }
+
+        .credits-info {
+            font-size: 14px;
+            color: var(--line-blue);
+        }
+
+        .credits-info .credit-num {
+            font-weight: bold;
+            font-size: 20px;
+        }
+
+        .section-title {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            border-bottom: 1px solid #233554;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        input,
+        select,
+        textarea {
+            background: #0a192f;
+            border: 1px solid #233554;
+            color: var(--text-main);
+            padding: 10px;
+            font-family: inherit;
+            border-radius: 2px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--line-blue);
+            box-shadow: 0 0 10px rgba(100, 255, 218, 0.1);
+        }
+
+        .btn-gen {
+            background: var(--line-blue);
+            color: #0a192f;
+            border: 1px solid var(--line-blue);
+            padding: 15px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+
+        .btn-gen:hover {
+            background: rgba(100, 255, 218, 0.9);
+            box-shadow: 0 0 20px rgba(100, 255, 218, 0.4);
+        }
+
+        .btn-demo {
+            background: transparent;
+            color: var(--line-blue);
+            border: 1px solid var(--line-blue);
+            padding: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.2s;
+        }
+
+        .btn-demo:hover {
+            background: rgba(100, 255, 218, 0.1);
+        }
+
+        /* 右侧A4仿真区 */
+        .preview-wrapper {
+            background: #555;
+            padding: 40px;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            position: relative;
+            border: 1px dashed #444;
+        }
+
+        .a4-paper {
+            width: var(--paper-width);
+            min-height: var(--paper-height);
+            background: #fff;
+            color: #000;
+            padding: 23mm 17mm;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            font-family: "SimSun", "Songti SC", "宋体", serif;
+            font-size: 14px;
+            line-height: 1.38;
+            position: relative;
+            transform-origin: top center;
+        }
+
+        .exam-header {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .exam-main-title {
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.35;
+            letter-spacing: 0.5px;
+        }
+
+        .exam-title {
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.35;
+            margin-top: 2px;
+        }
+
+        .exam-meta {
+            font-size: 16px;
+            font-weight: 700;
+            margin-top: 4px;
+            margin-bottom: 2px;
+        }
+
+        .question-group {
+            margin-bottom: 8px;
+        }
+
+        .group-title {
+            font-weight: 700;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 4px;
+        }
+
+        .question-item {
+            margin-bottom: 6px;
+            font-size: 14px;
+            line-height: 1.6;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .question-item.has-write-space {
+            margin-bottom: 10px;
+        }
+
+        .q-stem {
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+        }
+
+        .q-index {
+            font-weight: 500;
+        }
+
+        .q-score {
+            font-weight: 700;
+            margin-right: 4px;
+        }
+
+        .q-options {
+            margin-left: 22px;
+            margin-top: 2px;
+        }
+
+        .q-option {
+            display: inline-block;
+            min-width: 45%;
+            vertical-align: top;
+            padding-right: 8px;
+            margin-bottom: 2px;
+        }
+
+        .q-figure {
+            width: 100%;
+            padding: 10px 0;
+            text-align: center;
+            clear: both;
+        }
+
+        .q-figure svg {
+            max-width: 200px;
+            height: auto;
+            display: inline-block;
+        }
+
+        .q-figure img {
+            max-width: 200px;
+            height: auto;
+            border: 1px solid #ddd;
+            display: inline-block;
+        }
+
+        .q-write-space {
+            margin-top: 4px;
+            background: transparent;
+            border: none;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            color: transparent;
+            font-size: 1px;
+            line-height: 1;
+        }
+
+        .export-mode .q-write-space {
+            padding-bottom: 0.2mm;
+        }
+
+        .answer-key {
+            margin-top: 40px;
+            border-top: 1px dashed #999;
+            padding-top: 20px;
+            color: #444;
+            display: none;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 25, 47, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            color: var(--line-blue);
+        }
+
+        .loader {
+            border: 4px solid #112240;
+            border-top: 4px solid var(--line-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 弹窗样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-box {
+            background: var(--bg-panel);
+            border: 1px solid var(--line-blue);
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--line-blue);
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            color: var(--line-blue);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-text {
+            color: var(--text-main);
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.8;
+        }
+
+        .modal-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--line-blue);
+            color: var(--bg-dark);
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-btn:hover {
+            background: rgba(100, 255, 218, 0.8);
+        }
+
+        .modal-link {
+            color: var(--line-blue);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .qrcode-img {
+            max-width: 280px;
+            border-radius: 8px;
+            margin: 15px auto;
+            display: block;
+        }
+
+        .highlight-text {
+            color: #64ffda;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .warning-text {
+            color: #f0ad4e;
+        }
+
+        /* 定制开发页面 */
+        .custom-page {
+            display: none;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .custom-page.show {
+            display: block;
+        }
+
+        .custom-title {
+            font-size: 2rem;
+            color: var(--line-blue);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .custom-section {
+            background: var(--bg-panel);
+            border: 1px solid var(--line-blue);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .custom-section h3 {
+            color: var(--line-blue);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .custom-section p {
+            line-height: 1.8;
+            color: var(--text-main);
+        }
+
+        .price-compare {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .price-box {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            min-width: 200px;
+        }
+
+        .price-box.old {
+            background: #333;
+            border: 1px solid #555;
+        }
+
+        .price-box.new {
+            background: rgba(100, 255, 218, 0.1);
+            border: 2px solid var(--line-blue);
+        }
+
+        .price-box .label {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+
+        .price-box .price {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .price-box.old .price {
+            color: #888;
+            text-decoration: line-through;
+        }
+
+        .price-box.new .price {
+            color: var(--line-blue);
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #233554;
+            color: var(--text-main);
+        }
+
+        .feature-list li:before {
+            content: "✓ ";
+            color: var(--line-blue);
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: var(--line-blue);
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .back-btn:hover {
+            text-decoration: underline;
+        }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+
+            body {
+                background: white;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            body * {
+                visibility: hidden;
+            }
+
+            .a4-paper,
+            .a4-paper * {
+                visibility: visible;
+            }
+
+            .a4-paper {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm;
+                min-height: 297mm;
+                margin: 0;
+                padding: 23mm 17mm;
+                box-shadow: none;
+                border: none;
+                overflow: visible;
+            }
+        }
+    </style>
+
+  <link rel="stylesheet" href="/shared-global-nav.css">
+</head>
+
+<body>
+
+    <!-- 主内容区 -->
+    <div class="main-container" id="mainContent">
+        <div class="container">
+            <div class="console-panel">
+                <div>
+                    <h1>全息试卷工厂</h1>
+                    <p style="color: var(--text-dim); font-size: 12px;">HOLOGRAPHIC EXAM FACTORY</p>
+                </div>
+
+                <div>
+                    <div class="section-title">科目选择</div>
+                    <select id="subject" onchange="onSubjectOrGradeChange()">
+                        <optgroup label="小学科目">
+                            <option value="语文">语文</option>
+                            <option value="数学" selected>数学</option>
+                            <option value="英语">英语</option>
+                            <option value="道德与法治">道德与法治</option>
+                            <option value="科学">科学</option>
+                        </optgroup>
+                        <optgroup label="初中科目">
+                            <option value="语文">语文</option>
+                            <option value="数学">数学</option>
+                            <option value="英语">英语</option>
+                            <option value="物理">物理</option>
+                            <option value="化学">化学</option>
+                            <option value="生物">生物</option>
+                            <option value="历史">历史</option>
+                            <option value="地理">地理</option>
+                            <option value="政治">政治</option>
+                        </optgroup>
+                        <optgroup label="高中科目">
+                            <option value="语文">语文</option>
+                            <option value="数学">数学</option>
+                            <option value="英语">英语</option>
+                            <option value="物理">物理</option>
+                            <option value="化学">化学</option>
+                            <option value="生物">生物</option>
+                            <option value="历史">历史</option>
+                            <option value="地理">地理</option>
+                            <option value="政治">政治</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div>
+                    <div class="section-title">年级选择</div>
+                    <select id="grade" onchange="onSubjectOrGradeChange()">
+                        <optgroup label="小学">
+                            <option value="小学一年级">小学一年级</option>
+                            <option value="小学二年级">小学二年级</option>
+                            <option value="小学三年级">小学三年级</option>
+                            <option value="小学四年级">小学四年级</option>
+                            <option value="小学五年级">小学五年级</option>
+                            <option value="小学六年级">小学六年级</option>
+                        </optgroup>
+                        <optgroup label="初中">
+                            <option value="初中一年级">初中一年级</option>
+                            <option value="初中二年级">初中二年级</option>
+                            <option value="初中三年级">初中三年级</option>
+                        </optgroup>
+                        <optgroup label="高中">
+                            <option value="高中一年级" selected>高中一年级</option>
+                            <option value="高中二年级">高中二年级</option>
+                            <option value="高中三年级">高中三年级</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div>
+                    <div class="section-title">选择知识点</div>
+                    <select id="topicSelect" style="margin-bottom: 10px;">
+                        <option value="">-- 请先选择科目和年级 --</option>
+                    </select>
+                    <div id="aiHintText" style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px;">
+                        找不到知识点？输入关键词或句子，AI帮你生成
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="customTopicInput" placeholder="关键词或描述句子" style="flex: 1;">
+                        <button class="btn-demo" id="aiGenerateBtn" style="width: 100px;"
+                            onclick="generateTopicSuggestions()">AI生成</button>
+                    </div>
+                    <select id="aiTopicSelect" style="display: none; margin-top: 10px;">
+                        <option value="">-- AI生成的知识点备选 --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <div class="section-title">试卷配置</div>
+                    <div class="control-row" style="align-items: center; justify-content: space-between;">
+                        <label style="font-size: 14px;">试卷难度设置</label>
+                        <div style="display: flex; align-items: center; gap: 10px; width: 65%;">
+                            <input type="range" id="difficulty" min="1" max="10" value="5" style="flex: 1;"
+                                oninput="updateDifficultyDisplay()">
+                            <span id="difficultyValue"
+                                style="font-weight: bold; color: var(--line-blue); min-width: 25px;">5</span>
+                        </div>
+                    </div>
+                    <div id="difficultyHint"
+                        style="margin-top: 6px; font-size: 12px; color: var(--line-blue); line-height: 1.5;">
+                        Lv5：中档综合，明显高于校内周测，开始出现多步骤推理。
+                    </div>
+                    <div class="control-row" style="margin-top: 10px;">
+                        <label style="font-size: 14px; width: 100px;">试卷类型</label>
+                        <select id="examType" style="flex:1">
+                            <option value="quiz">随堂小测</option>
+                            <option value="unit">单元测试</option>
+                            <option value="midterm">期中考试</option>
+                            <option value="final" selected>期末考试</option>
+                            <option value="mock">模拟考试</option>
+                        </select>
+                    </div>
+                    <div class="control-row" style="margin-top: 10px;">
+                        <label style="font-size: 14px; width: 100px;">试卷页数</label>
+                        <select id="pageCount" style="flex:1">
+                            <option value="1" selected>1页</option>
+                            <option value="2">2页</option>
+                            <option value="3">3页</option>
+                            <option value="4">4页</option>
+                            <option value="5">5页</option>
+                            <option value="6">6页</option>
+                            <option value="7">7页</option>
+                            <option value="8">8页</option>
+                            <option value="9">9页</option>
+                            <option value="10">10页</option>
+                        </select>
+                    </div>
+                    <div class="control-row" style="margin-top: 10px;">
+                        <label style="font-size: 14px; width: 100px;">题目数量</label>
+                        <select id="questionCount" style="flex:1">
+                            <option value="12">12题</option>
+                            <option value="15">15题</option>
+                            <option value="18">18题</option>
+                            <option value="21" selected>21题（推荐）</option>
+                            <option value="24">24题</option>
+                            <option value="27">27题</option>
+                            <option value="30">30题</option>
+                            <option value="36">36题</option>
+                            <option value="42">42题</option>
+                        </select>
+                    </div>
+                    <div class="control-row" style="margin-top: 10px;">
+                        <label style="font-size: 14px; display:flex; align-items:center; gap:5px;">
+                            <input type="checkbox" id="showAnswer" style="width:auto;"> 显示试卷答案和解析
+                        </label>
+                    </div>
+                </div>
+
+                <button class="btn-gen" id="generateBtn">
+                    <span>⚡ 开始制作试卷</span>
+                </button>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn-demo" id="exportPdfBtn" style="flex: 1;">📄 导出PDF</button>
+                    <button class="btn-demo" id="exportWordBtn" style="flex: 1;">📝 导出Word</button>
+                </div>
+
+                <!-- 首次生成后显示的提示 -->
+                <div id="firstUseHint"
+                    style="display: none; margin-top: 15px; padding: 12px; background: rgba(100, 255, 218, 0.1); border: 1px solid var(--line-blue); border-radius: 4px; font-size: 12px; line-height: 1.6;">
+                    <div style="color: var(--line-blue); font-weight: bold; margin-bottom: 8px;">💡 温馨提示</div>
+                    <div style="color: var(--text-main);">
+                        1. 觉得是自己想要的？请联系 <span class="modal-link" onclick="showContactModal()">赛博工头</span> 购买正式版<br><br>
+                        2. 觉得哪里不好，或有额外功能需求？找 <span class="modal-link" onclick="showContactModal()">赛博工头</span> 定制修改<br>
+                        <span style="color: #f0ad4e;">只需 ¥9.9（超低颠覆价！）2天内完成</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧预览 -->
+            <div class="preview-wrapper">
+                <div class="loading-overlay" id="loading">
+                    <div class="loader"></div>
+                    <div>AI ASSEMBLING EXAM PAPER...</div>
+                    <div style="font-size: 12px; margin-top: 5px; opacity: 0.7;">正在构建知识图谱与试题结构</div>
+                </div>
+
+                <div class="a4-paper" id="paper">
+                    <div class="exam-header">
+                        <div class="exam-main-title" id="paperMainTitle">2026年普通高等学校招生全国统一考试</div>
+                        <div class="exam-title" id="paperTitle">数学试卷</div>
+                        <div class="exam-meta" id="paperMeta">（考试时间120分钟，满分150分）</div>
+                    </div>
+
+                    <div id="examContent">
+                        <div style="text-align: center; color: #999; padding-top: 100px;">
+                            试卷等待生成中...<br>请输入知识点并点击生成
+                        </div>
+                    </div>
+
+                    <div class="answer-key" id="answerArea">
+                        <div class="group-title">参考答案与解析</div>
+                        <div id="answerContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 定制开发页面 -->
+    <div class="custom-page" id="customPage">
+        <span class="back-btn" onclick="hideCustomPage()">← 返回试卷工厂</span>
+
+        <h1 class="custom-title">🚀 AI功能定制服务</h1>
+
+        <div class="custom-section">
+            <h3>💡 一对一定制，实现你的任何需求</h3>
+            <p>
+                赛博工头提供专业的AI功能定制开发服务，无论你是什么行业、有什么样的需求，<br>
+                <strong style="color: var(--line-blue);">赛博工头都可以帮你实现！</strong>
+            </p>
+        </div>
+
+        <div class="custom-section">
+            <h3>💰 价格对比</h3>
+            <div class="price-compare">
+                <div class="price-box old">
+                    <div class="label">传统定制开发</div>
+                    <div class="price">¥5000-50000+</div>
+                    <p style="font-size: 12px; color: #888; margin-top: 10px;">周期长、成本高、沟通难</p>
+                </div>
+                <div class="price-box new">
+                    <div class="label">赛博工头定制</div>
+                    <div class="price">¥9.9</div>
+                    <p style="font-size: 12px; color: var(--line-blue); margin-top: 10px;">超低颠覆价！2天内交付</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="custom-section">
+            <h3>✨ 服务特点</h3>
+            <ul class="feature-list">
+                <li>一对一沟通，深度理解你的需求</li>
+                <li>快速响应，2天内完成开发</li>
+                <li>满足各种个性化定制需求</li>
+                <li>任何行业、任何场景均可实现</li>
+                <li>持续技术支持与功能优化</li>
+            </ul>
+        </div>
+
+        <div class="custom-section" style="text-align: center;">
+            <h3>📱 立即联系赛博工头</h3>
+            <p>扫码添加微信，开始你的定制之旅</p>
+            <img src="gogntouvchat.jpg" alt="赛博工头微信" class="qrcode-img">
+        </div>
+    </div>
+
+    <!-- 弹窗：联系方式 -->
+    <div class="modal-overlay" id="contactModal">
+        <div class="modal-box" style="text-align: center; max-width: 500px;">
+            <button class="modal-close" onclick="closeModal('contactModal')">×</button>
+            <div class="modal-title">📱 联系赛博工头</div>
+
+            <div style="text-align: left; margin-bottom: 20px; line-height: 1.8;">
+                <div
+                    style="background: rgba(100, 255, 218, 0.1); padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                    <div style="color: var(--line-blue); font-weight: bold; margin-bottom: 8px;">🎯 购买正式版</div>
+                    <div style="color: var(--text-main); font-size: 14px;">
+                        觉得是自己想要的？请联系赛博工头购买正式版，<br>解锁无限使用次数！
+                    </div>
+                </div>
+
+                <div style="background: rgba(240, 173, 78, 0.1); padding: 15px; border-radius: 6px;">
+                    <div style="color: #f0ad4e; font-weight: bold; margin-bottom: 8px;">🛠️ 功能定制服务</div>
+                    <div style="color: var(--text-main); font-size: 14px;">
+                        觉得哪里不好？或有额外功能需求？<br>
+                        找赛博工头为你修改和定制开发<br><br>
+                        <span style="color: #f0ad4e; font-weight: bold;">只需 ¥9.9（超低颠覆价！）</span><br>
+                        <span style="color: var(--line-blue);">2天内开发完成</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-text">扫描下方二维码添加微信</div>
+            <img src="gogntouvchat.jpg" alt="赛博工头微信" class="qrcode-img">
+        </div>
+    </div>
+
+    <script>
+        // API配置 - 使用后端代理（KEY安全存储在服务端）
+        const API_CONFIG = {
+            baseURL: '/api/chat',
+        };
+
+        // 图片生成API配置 - 使用后端代理
+        const IMAGE_API_CONFIG = {
+            baseURL: '/api/image',
+        };
+
+        async function parseApiJsonResponse(response) {
+            const rawText = await response.text();
+            let data = null;
+            try {
+                data = rawText ? JSON.parse(rawText) : {};
+            } catch (error) {
+                throw new Error(`接口返回非JSON内容（HTTP ${response.status}）: ${rawText.slice(0, 120)}`);
+            }
+            if (!response.ok) {
+                const detail = data?.detail || data?.error || rawText.slice(0, 120);
+                throw new Error(`接口请求失败（HTTP ${response.status}）: ${detail}`);
+            }
+            return data;
+        }
+
+        // ========== 图形生成器系统 ==========
+
+        // SVG几何图形生成器
+        const SVGGenerator = {
+            // 创建基础SVG容器 - 依靠父容器text-align居中
+            createSVG(width = 200, height = 150) {
+                return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" style="max-width: 200px; height: auto; display: inline-block;">`;
+            },
+
+            // 生成三角形
+            triangle(params = {}) {
+                const { labels = ['A', 'B', 'C'], showAngles = false, type = 'normal' } = params;
+                let points, labelPositions;
+
+                if (type === 'right') {
+                    points = '30,120 170,120 30,30';
+                    labelPositions = [
+                        { x: 25, y: 25, label: labels[0] },
+                        { x: 25, y: 135, label: labels[1] },
+                        { x: 175, y: 135, label: labels[2] }
+                    ];
+                } else if (type === 'isosceles') {
+                    points = '100,20 30,130 170,130';
+                    labelPositions = [
+                        { x: 100, y: 12, label: labels[0] },
+                        { x: 22, y: 140, label: labels[1] },
+                        { x: 175, y: 140, label: labels[2] }
+                    ];
+                } else {
+                    points = '100,20 40,130 160,130';
+                    labelPositions = [
+                        { x: 100, y: 12, label: labels[0] },
+                        { x: 32, y: 140, label: labels[1] },
+                        { x: 168, y: 140, label: labels[2] }
+                    ];
+                }
+
+                let svg = this.createSVG();
+                svg += `<polygon points="${points}" fill="none" stroke="#333" stroke-width="2"/>`;
+                labelPositions.forEach(pos => {
+                    svg += `<text x="${pos.x}" y="${pos.y}" text-anchor="middle" font-size="14" font-weight="bold">${pos.label}</text>`;
+                });
+                if (type === 'right') {
+                    svg += `<rect x="30" y="105" width="15" height="15" fill="none" stroke="#333" stroke-width="1"/>`;
+                }
+                svg += '</svg>';
+                return svg;
+            },
+
+            // 生成圆形
+            circle(params = {}) {
+                const { center = 'O', radius = 'r', showRadius = true, showDiameter = false } = params;
+                let svg = this.createSVG();
+                svg += `<circle cx="100" cy="75" r="60" fill="none" stroke="#333" stroke-width="2"/>`;
+                svg += `<circle cx="100" cy="75" r="3" fill="#333"/>`;
+                svg += `<text x="108" y="72" font-size="14" font-weight="bold">${center}</text>`;
+
+                if (showRadius) {
+                    svg += `<line x1="100" y1="75" x2="160" y2="75" stroke="#333" stroke-width="1.5"/>`;
+                    svg += `<text x="130" y="68" font-size="12">${radius}</text>`;
+                }
+                if (showDiameter) {
+                    svg += `<line x1="40" y1="75" x2="160" y2="75" stroke="#333" stroke-width="1.5"/>`;
+                }
+                svg += '</svg>';
+                return svg;
+            },
+
+            // 生成坐标系
+            coordinate(params = {}) {
+                const { showGrid = false, points = [], lines = [] } = params;
+                let svg = this.createSVG(220, 180);
+
+                // 坐标轴
+                svg += `<line x1="20" y1="160" x2="200" y2="160" stroke="#333" stroke-width="2"/>`;
+                svg += `<line x1="110" y1="20" x2="110" y2="170" stroke="#333" stroke-width="2"/>`;
+                // 箭头
+                svg += `<polygon points="200,160 190,155 190,165" fill="#333"/>`;
+                svg += `<polygon points="110,20 105,30 115,30" fill="#333"/>`;
+                // 标签
+                svg += `<text x="205" y="165" font-size="14">x</text>`;
+                svg += `<text x="115" y="18" font-size="14">y</text>`;
+                svg += `<text x="115" y="175" font-size="12">O</text>`;
+
+                // 绘制刻度
+                for (let i = -4; i <= 4; i++) {
+                    if (i !== 0) {
+                        const x = 110 + i * 20;
+                        svg += `<line x1="${x}" y1="157" x2="${x}" y2="163" stroke="#333" stroke-width="1"/>`;
+                    }
+                }
+                for (let i = -3; i <= 3; i++) {
+                    if (i !== 0) {
+                        const y = 160 - i * 20;
+                        svg += `<line x1="107" y1="${y}" x2="113" y2="${y}" stroke="#333" stroke-width="1"/>`;
+                    }
+                }
+
+                svg += '</svg>';
+                return svg;
+            },
+
+            // 生成矩形/正方形
+            rectangle(params = {}) {
+                const { labels = ['A', 'B', 'C', 'D'], width = 140, height = 80 } = params;
+                let svg = this.createSVG();
+                const x = (200 - width) / 2;
+                const y = (150 - height) / 2;
+
+                svg += `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="none" stroke="#333" stroke-width="2"/>`;
+                svg += `<text x="${x - 10}" y="${y - 5}" font-size="14" font-weight="bold">${labels[0]}</text>`;
+                svg += `<text x="${x + width + 5}" y="${y - 5}" font-size="14" font-weight="bold">${labels[1]}</text>`;
+                svg += `<text x="${x + width + 5}" y="${y + height + 15}" font-size="14" font-weight="bold">${labels[2]}</text>`;
+                svg += `<text x="${x - 10}" y="${y + height + 15}" font-size="14" font-weight="bold">${labels[3]}</text>`;
+                svg += '</svg>';
+                return svg;
+            },
+
+            // 生成平行四边形
+            parallelogram(params = {}) {
+                const { labels = ['A', 'B', 'C', 'D'] } = params;
+                let svg = this.createSVG();
+                svg += `<polygon points="50,30 170,30 130,120 10,120" fill="none" stroke="#333" stroke-width="2"/>`;
+                svg += `<text x="45" y="22" font-size="14" font-weight="bold">${labels[0]}</text>`;
+                svg += `<text x="175" y="35" font-size="14" font-weight="bold">${labels[1]}</text>`;
+                svg += `<text x="130" y="135" font-size="14" font-weight="bold">${labels[2]}</text>`;
+                svg += `<text x="2" y="135" font-size="14" font-weight="bold">${labels[3]}</text>`;
+                svg += '</svg>';
+                return svg;
+            },
+
+            // 生成数轴
+            numberLine(params = {}) {
+                const { min = -5, max = 5, points = [] } = params;
+                let svg = this.createSVG(220, 60);
+                svg += `<line x1="10" y1="30" x2="210" y2="30" stroke="#333" stroke-width="2"/>`;
+                svg += `<polygon points="210,30 200,25 200,35" fill="#333"/>`;
+
+                const range = max - min;
+                const step = 180 / range;
+                for (let i = min; i <= max; i++) {
+                    const x = 20 + (i - min) * step;
+                    svg += `<line x1="${x}" y1="25" x2="${x}" y2="35" stroke="#333" stroke-width="1"/>`;
+                    svg += `<text x="${x}" y="50" text-anchor="middle" font-size="10">${i}</text>`;
+                }
+                svg += '</svg>';
+                return svg;
+            }
+        };
+
+        // 根据描述生成合适的图形 - 使用AI生成精确的SVG
+        async function generateFigure(figureDesc, subject) {
+            if (!figureDesc) return '';
+
+            try {
+                // 调用AI生成精确的SVG代码
+                const prompt = `请根据以下描述生成一个精确的SVG图形代码。
+
+图形描述: ${figureDesc}
+科目: ${subject}
+
+要求:
+1. 生成完整可用的SVG代码，包含 <svg> 开始和结束标签
+2. SVG的viewBox应为 "0 0 300 200"，确保图形比例合适
+3. 使用黑色线条(stroke="#333")，线宽2px，填充透明(fill="none")
+4. 所有文字标签使用font-size="14"
+5. 图形应该清晰、准确、符合教育场景
+6. 如果是几何图形，要标注点的名称（如A、B、C）
+7. 如果是物体图形（如足球、书本等），用简洁的线条画出轮廓
+8. 如果是堆叠的立方体，用3D效果画出来
+
+只返回SVG代码，不要任何其他文字说明。SVG代码示例格式:
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200">
+  <!-- 图形内容 -->
+</svg>`;
+
+                const response = await fetch(API_CONFIG.baseURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+
+                const resData = await parseApiJsonResponse(response);
+                const content = resData.choices[0].message.content;
+
+                // 提取SVG代码
+                const svgMatch = content.match(/<svg[\s\S]*?<\/svg>/i);
+                if (svgMatch) {
+                    // 添加样式限制大小
+                    let svg = svgMatch[0];
+                    // 确保SVG有合适的样式
+                    if (!svg.includes('style=')) {
+                        svg = svg.replace('<svg', '<svg style="max-width: 200px; height: auto; display: inline-block;"');
+                    }
+                    return svg;
+                }
+            } catch (e) {
+                console.error('AI生成SVG失败:', e);
+            }
+
+            // AI生成失败时，尝试使用预设的SVG生成器
+            const desc = figureDesc.toLowerCase();
+
+            if (desc.includes('三角形') || desc.includes('triangle')) {
+                if (desc.includes('直角')) {
+                    return SVGGenerator.triangle({ type: 'right' });
+                } else if (desc.includes('等腰')) {
+                    return SVGGenerator.triangle({ type: 'isosceles' });
+                }
+                return SVGGenerator.triangle();
+            }
+
+            if (desc.includes('圆') && !desc.includes('圆柱') && !desc.includes('圆锥')) {
+                return SVGGenerator.circle({ showRadius: desc.includes('半径'), showDiameter: desc.includes('直径') });
+            }
+
+            if (desc.includes('坐标') || desc.includes('coordinate') || desc.includes('函数图像')) {
+                return SVGGenerator.coordinate();
+            }
+
+            if (desc.includes('矩形') || desc.includes('长方形') || desc.includes('正方形')) {
+                return SVGGenerator.rectangle();
+            }
+
+            if (desc.includes('平行四边形')) {
+                return SVGGenerator.parallelogram();
+            }
+
+            if (desc.includes('数轴')) {
+                return SVGGenerator.numberLine();
+            }
+
+            // 最后的备用方案：返回描述性占位符
+            return `<div style="border: 1px solid #ccc; background: #f9f9f9; padding: 15px; text-align: center; margin: 10px 0; color: #666; font-size: 12px; border-radius: 4px;">
+                <div style="font-weight: bold; margin-bottom: 5px;">📊 图形</div>
+                <div>${figureDesc}</div>
+            </div>`;
+        }
+
+        // AI生成图片（保留作为备用）
+        async function generateAIImage(description) {
+            try {
+                const response = await fetch(IMAGE_API_CONFIG.baseURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        prompt: `为考试试卷生成清晰的教育示意图: ${description}。要求：黑白线条图，简洁明了，适合印刷`,
+                        n: 1,
+                        size: '512x512'
+                    })
+                });
+
+                const data = await parseApiJsonResponse(response);
+                if (data.data && data.data[0] && data.data[0].url) {
+                    return `<img src="${data.data[0].url}" alt="${description}" style="max-width: 200px; margin: 10px 0; border: 1px solid #ddd;">`;
+                }
+            } catch (e) {
+                console.error('AI图片生成失败:', e);
+            }
+
+            return '';
+        }
+
+        // ========== 页面初始化 ==========
+        const SETTINGS_KEY = 'exam_settings';
+
+        function initCreditsSystem() {
+            loadSettings();
+            onSubjectOrGradeChange();
+        }
+
+        // ========== 知识库 ==========
+        const KNOWLEDGE_BASE = {
+            "小学一年级": {
+                "数学": ["10以内加减法", "20以内加减法", "认识钟表", "认识图形", "比较大小", "分类与整理"],
+                "语文": ["拼音", "识字写字", "看图说话", "简单句子", "儿歌背诵"],
+                "英语": ["26个字母", "简单问候语", "数字1-10", "颜色单词"]
+            },
+            "小学二年级": {
+                "数学": ["100以内加减法", "表内乘法", "认识时间", "长度单位", "角的认识"],
+                "语文": ["偏旁部首", "组词造句", "看图写话", "阅读理解基础"],
+                "英语": ["日常对话", "家庭成员", "动物单词", "食物单词"]
+            },
+            "小学三年级": {
+                "数学": ["万以内加减法", "两三位数乘法", "时分秒", "周长面积", "分数初步"],
+                "语文": ["阅读理解", "作文入门", "修辞手法", "古诗背诵"],
+                "英语": ["现在进行时", "一般现在时", "名词单复数", "简单对话"]
+            },
+            "小学四年级": {
+                "数学": ["大数的认识", "三位数乘两位数", "平行与垂直", "小数的认识", "运算定律"],
+                "语文": ["记叙文阅读", "说明文阅读", "写景作文", "写人作文"],
+                "英语": ["一般过去时", "There be句型", "方位介词", "时间表达"]
+            },
+            "小学五年级": {
+                "数学": ["小数乘除法", "简易方程", "多边形面积", "因数与倍数", "分数加减法"],
+                "语文": ["议论文阅读", "写事作文", "读后感", "缩写扩写"],
+                "英语": ["一般将来时", "比较级最高级", "特殊疑问句", "阅读理解"]
+            },
+            "小学六年级": {
+                "数学": ["分数乘除法", "比和比例", "圆的周长面积", "统计与概率", "总复习"],
+                "语文": ["小升初阅读", "记叙文写作", "文言文入门", "综合复习"],
+                "英语": ["小升初语法总复习", "完形填空", "阅读理解", "写作训练"]
+            },
+            "初中一年级": {
+                "数学": ["有理数", "整式的加减", "一元一次方程", "几何图形初步", "相交线与平行线"],
+                "语文": ["记叙文写作", "说明文阅读", "文言文阅读", "诗歌鉴赏"],
+                "英语": ["时态总复习", "名词代词", "冠词数词", "介词连词"],
+                "物理": [],
+                "化学": [],
+                "生物": ["生物与生物圈", "细胞", "生物体的结构层次"],
+                "历史": ["中国古代史", "史前时期", "夏商周"],
+                "地理": ["地球与地图", "陆地和海洋", "天气与气候"],
+                "政治": ["中学生活", "学会学习", "师长情谊"]
+            },
+            "初中二年级": {
+                "数学": ["三角形", "全等三角形", "轴对称", "整式的乘除", "分式"],
+                "语文": ["散文阅读", "小说阅读", "议论文写作", "古诗文"],
+                "英语": ["宾语从句", "状语从句", "被动语态", "过去完成时"],
+                "物理": ["机械运动", "声现象", "光现象", "透镜及其应用", "质量与密度"],
+                "化学": [],
+                "生物": ["动物的主要类群", "动物的运动", "生命的延续"],
+                "历史": ["中国近代史", "列强入侵", "近代化探索"],
+                "地理": ["中国的疆域", "中国的自然环境", "中国的资源"],
+                "政治": ["社会生活", "权利义务", "国家制度"]
+            },
+            "初中三年级": {
+                "数学": ["一元二次方程", "二次函数", "旋转", "圆", "相似"],
+                "语文": ["中考阅读", "中考作文", "名著阅读", "综合性学习"],
+                "英语": ["中考语法总复习", "阅读技巧", "写作技巧", "完形填空"],
+                "物理": ["电学", "电功率", "电与磁", "能源与可持续发展"],
+                "化学": ["物质构成的奥秘", "化学方程式", "碳和碳的氧化物", "金属", "酸碱盐"],
+                "生物": ["生物中考复习"],
+                "历史": ["世界历史", "中考历史复习"],
+                "地理": ["中考地理复习"],
+                "政治": ["中考政治复习"]
+            },
+            "高中一年级": {
+                "数学": ["集合与常用逻辑用语", "一元二次函数", "函数的概念与性质", "指数函数与对数函数", "三角函数"],
+                "语文": ["现代文阅读", "古代诗文阅读", "语言文字运用", "写作训练"],
+                "英语": ["高中语法基础", "阅读理解策略", "完形填空技巧", "书面表达"],
+                "物理": ["运动的描述", "匀变速直线运动", "相互作用-力", "牛顿运动定律"],
+                "化学": ["物质及其变化", "海水中的重要元素", "铁及其化合物", "物质结构"],
+                "生物": ["细胞的分子组成", "细胞的基本结构", "细胞的能量供应", "细胞的生命历程"],
+                "历史": ["中国古代史", "中华文明的起源", "秦汉统一", "三国两晋南北朝"],
+                "地理": ["宇宙中的地球", "地球上的大气", "地球上的水", "地表形态的塑造"],
+                "政治": ["中国特色社会主义", "经济生活", "政治生活"]
+            },
+            "高中二年级": {
+                "数学": ["等差数列与等比数列", "空间向量与立体几何", "平面向量", "复数", "统计与概率"],
+                "语文": ["文学类文本阅读", "实用类文本阅读", "古诗词鉴赏", "文言文阅读"],
+                "英语": ["非谓语动词", "定语从句", "名词性从句", "虚拟语气"],
+                "物理": ["曲线运动", "万有引力与航天", "机械能守恒定律", "静电场"],
+                "化学": ["化学反应与能量", "化学反应速率与平衡", "水溶液中的离子平衡", "电化学"],
+                "生物": ["遗传因子的发现", "基因和染色体的关系", "基因的本质", "生物的进化"],
+                "历史": ["世界古代史", "世界近代史", "资本主义的发展"],
+                "地理": ["区域地理", "区域生态环境建设", "区域资源开发"],
+                "政治": ["文化生活", "哲学与人生"]
+            },
+            "高中三年级": {
+                "数学": ["导数及其应用", "圆锥曲线", "高考数学总复习", "真题训练"],
+                "语文": ["高考阅读专项", "高考作文专项", "高考古诗文专项", "高考总复习"],
+                "英语": ["高考语法填空", "高考阅读理解", "高考完形填空", "高考写作"],
+                "物理": ["电磁感应", "交变电流", "高考物理总复习", "真题训练"],
+                "化学": ["有机化学基础", "物质结构与性质", "高考化学总复习"],
+                "生物": ["生命活动的调节", "种群和群落", "生态系统", "高考生物总复习"],
+                "历史": ["高考历史总复习", "真题训练"],
+                "地理": ["高考地理总复习", "真题训练"],
+                "政治": ["高考政治总复习", "时政热点"]
+            }
+        };
+
+        // 更新知识点下拉框
+        function onSubjectOrGradeChange() {
+            const subject = document.getElementById('subject').value;
+            const grade = document.getElementById('grade').value;
+            const topicSelect = document.getElementById('topicSelect');
+
+            topicSelect.innerHTML = '<option value="">-- 请选择知识点 --</option>';
+
+            const topics = KNOWLEDGE_BASE[grade]?.[subject] || [];
+
+            if (topics.length === 0) {
+                topicSelect.innerHTML = '<option value="">-- 该科目暂无预设知识点，请自定义输入 --</option>';
+            } else {
+                topics.forEach(topic => {
+                    const option = document.createElement('option');
+                    option.value = topic;
+                    option.textContent = topic;
+                    topicSelect.appendChild(option);
+                });
+            }
+
+            saveSettings();
+        }
+
+        // 更新难度系数显示
+        function updateDifficultyDisplay() {
+            const value = document.getElementById('difficulty').value;
+            document.getElementById('difficultyValue').textContent = value;
+            const profile = getDifficultyProfile(value);
+            const hintEl = document.getElementById('difficultyHint');
+            if (hintEl) {
+                hintEl.textContent = profile.hint;
+            }
+            saveSettings();
+        }
+
+        // AI生成知识点建议
+        async function generateTopicSuggestions() {
+            const keyword = document.getElementById('customTopicInput').value.trim();
+            if (!keyword) {
+                alert('请输入关键词或描述句子');
+                return;
+            }
+
+            const subject = document.getElementById('subject').value;
+            const grade = document.getElementById('grade').value;
+            const aiSelect = document.getElementById('aiTopicSelect');
+            const aiBtn = document.getElementById('aiGenerateBtn');
+            const hintText = document.getElementById('aiHintText');
+
+            aiSelect.innerHTML = '<option value="">正在生成...</option>';
+            aiSelect.style.display = 'block';
+            aiBtn.disabled = true;
+
+            try {
+                const prompt = `作为${grade}${subject}教师，根据关键词"${keyword}"，生成10个具体的考试知识点。只返回JSON数组格式，例如：["知识点1", "知识点2", ...]`;
+
+                const response = await fetch(API_CONFIG.baseURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+
+                const resData = await parseApiJsonResponse(response);
+                const content = resData.choices[0].message.content;
+                const jsonMatch = content.match(/\[[\s\S]*\]/);
+
+                if (jsonMatch) {
+                    const topics = JSON.parse(jsonMatch[0]);
+                    aiSelect.innerHTML = '<option value="">-- 选择一个知识点 --</option>';
+                    topics.forEach(topic => {
+                        if (topic && typeof topic === 'string') {
+                            const option = document.createElement('option');
+                            option.value = topic;
+                            option.textContent = topic;
+                            aiSelect.appendChild(option);
+                        }
+                    });
+                    // 生成成功后，按钮变为"继续生成"，并更新提示
+                    aiBtn.textContent = '继续生成';
+                    hintText.innerHTML = '没找到合适的？换个关键词或句子试试';
+                } else {
+                    aiSelect.innerHTML = '<option value="">生成失败，请重试</option>';
+                }
+            } catch (e) {
+                console.error(e);
+                aiSelect.innerHTML = '<option value="">生成失败，请重试</option>';
+            }
+
+            aiBtn.disabled = false;
+        }
+
+        // 获取选中的知识点
+        function getSelectedTopic() {
+            const topicSelect = document.getElementById('topicSelect').value;
+            const aiTopicSelect = document.getElementById('aiTopicSelect').value;
+            const customTopic = document.getElementById('customTopicInput').value.trim();
+
+            return aiTopicSelect || topicSelect || customTopic || '';
+        }
+
+        // 保存设置
+        function saveSettings() {
+            const settings = {
+                subject: document.getElementById('subject').value,
+                grade: document.getElementById('grade').value,
+                difficulty: document.getElementById('difficulty').value,
+                examType: document.getElementById('examType').value,
+                pageCount: document.getElementById('pageCount').value,
+                questionCount: document.getElementById('questionCount').value,
+                showAnswer: document.getElementById('showAnswer').checked
+            };
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        }
+
+        // 加载设置
+        function loadSettings() {
+            const saved = localStorage.getItem(SETTINGS_KEY);
+            if (saved) {
+                try {
+                    const settings = JSON.parse(saved);
+                    if (settings.subject) document.getElementById('subject').value = settings.subject;
+                    if (settings.grade) document.getElementById('grade').value = settings.grade;
+                    if (settings.difficulty) {
+                        document.getElementById('difficulty').value = settings.difficulty;
+                        document.getElementById('difficultyValue').textContent = settings.difficulty;
+                    }
+                    if (settings.examType) document.getElementById('examType').value = settings.examType;
+                    if (settings.pageCount) document.getElementById('pageCount').value = settings.pageCount;
+                    if (settings.questionCount) document.getElementById('questionCount').value = settings.questionCount;
+                    if (settings.showAnswer !== undefined) document.getElementById('showAnswer').checked = settings.showAnswer;
+                    updateDifficultyDisplay();
+                } catch (e) {
+                    console.error('加载设置失败', e);
+                }
+            } else {
+                updateDifficultyDisplay();
+            }
+        }
+
+        // 弹窗控制
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        function showContactModal() {
+            const globalContactBtn = document.getElementById('cyberGlobalContactBtn');
+            if (globalContactBtn) {
+                globalContactBtn.click();
+            }
+        }
+
+        // 定制开发页面
+        function showCustomPage() {
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('customPage').classList.add('show');
+        }
+
+        function hideCustomPage() {
+            document.getElementById('customPage').classList.remove('show');
+            document.getElementById('mainContent').style.display = 'flex';
+        }
+
+        // 监听设置变化
+        document.addEventListener('DOMContentLoaded', function () {
+            initCreditsSystem();
+
+            // 监听各个设置项变化自动保存
+            ['examType', 'pageCount', 'questionCount', 'showAnswer'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', saveSettings);
+            });
+        });
+
+        // ========== 原有功能代码 ==========
+        const loadingEl = document.getElementById('loading');
+        const examContentEl = document.getElementById('examContent');
+        const answerContentEl = document.getElementById('answerContent');
+        const answerAreaEl = document.getElementById('answerArea');
+        const paperMainTitleEl = document.getElementById('paperMainTitle');
+        const paperTitleEl = document.getElementById('paperTitle');
+        const paperMetaEl = document.getElementById('paperMeta');
+
+        const SECTION_LABELS = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+        const EXAM_TYPE_NAMES = {
+            quiz: '随堂小测',
+            unit: '单元测试',
+            midterm: '期中考试',
+            final: '期末考试',
+            mock: '模拟考试'
+        };
+        const DIFFICULTY_PROFILES = {
+            1: { hint: 'Lv1：入门强化，基础概念直接应用，几乎无综合迁移。', prompt: '入门强化难度：题目应明显高于课后例题，但仍以单知识点直接应用为主。' },
+            2: { hint: 'Lv2：基础进阶，概念变式增多，计算量略提升。', prompt: '基础进阶难度：在基础题上加入轻度变式与小陷阱，要求更稳的基本功。' },
+            3: { hint: 'Lv3：常规进阶，出现跨小知识点串联。', prompt: '常规进阶难度：适度跨知识点，要求学生进行1-2步推理。' },
+            4: { hint: 'Lv4：中档偏上，重视方法选择与条件转化。', prompt: '中档偏上难度：突出条件转化与方法选择，不要停留在机械套公式。' },
+            5: { hint: 'Lv5：中档综合，明显高于校内周测，多步骤推理。', prompt: '中档综合难度：强调多步骤推理、分类讨论与易错点辨析。' },
+            6: { hint: 'Lv6：高强综合，接近期中压轴水平。', prompt: '高强综合难度：题目应具备较强综合性，至少包含1道较复杂的变式链条。' },
+            7: { hint: 'Lv7：准高考压轴，强调函数思想与综合建模。', prompt: '准高考压轴难度：大题需体现较强综合建模能力与深度推理。' },
+            8: { hint: 'Lv8：高考真题难度，对齐近年高考中高档题。', prompt: '高考级难度：严格对齐高考真题风格与思维深度，难度等同或非常接近高考卷。' },
+            9: { hint: 'Lv9：高考压轴以上，加入竞赛风格变式。', prompt: '高考压轴以上难度：整体高于高考真题，需加入更复杂的构造、参数讨论或反证思路。' },
+            10: { hint: 'Lv10：奥数/竞赛级，明显高于高考真题。', prompt: '奥数竞赛难度：题目应明显高于高考真题，达到省级竞赛或奥数训练强度。' }
+        };
+        const QUESTION_RATIO = { blank: 12, choice: 4, qa: 5 };
+        const GROUP_DEFAULTS = {
+            choice: {
+                name: '选择题',
+                score: 5,
+                instruction: '每题有且仅有一个正确选项。'
+            },
+            blank: {
+                name: '填空题',
+                score: 5,
+                instruction: '考生应在答题纸的相应位置直接填写结果。'
+            },
+            qa: {
+                name: '解答题',
+                score: 14,
+                instruction: '解答下列各题必须在答题纸的相应位置写出必要的步骤。'
+            }
+        };
+
+        let currentPaperFileTitle = '试卷';
+        let pendingFigureTasks = [];
+
+        function getDifficultyProfile(level) {
+            const safeLevel = Math.min(10, Math.max(1, Number(level) || 5));
+            return DIFFICULTY_PROFILES[safeLevel] || DIFFICULTY_PROFILES[5];
+        }
+
+        function distributeQuestionCounts(totalCount, ratioMap = QUESTION_RATIO) {
+            const total = Math.max(3, Number(totalCount) || 21);
+            const types = ['blank', 'choice', 'qa'];
+            const ratioSum = types.reduce((sum, type) => sum + (ratioMap[type] || 0), 0) || 1;
+
+            const rawCounts = {};
+            const rounded = {};
+            types.forEach(type => {
+                rawCounts[type] = (total * (ratioMap[type] || 0)) / ratioSum;
+                rounded[type] = Math.max(0, Math.round(rawCounts[type]));
+            });
+
+            let diff = total - types.reduce((sum, type) => sum + rounded[type], 0);
+            while (diff !== 0) {
+                const needIncrease = diff > 0;
+                const candidates = types
+                    .filter(type => needIncrease || rounded[type] > 0)
+                    .sort((a, b) => {
+                        const scoreA = needIncrease ? (rawCounts[a] - rounded[a]) : (rounded[a] - rawCounts[a]);
+                        const scoreB = needIncrease ? (rawCounts[b] - rounded[b]) : (rounded[b] - rawCounts[b]);
+                        return scoreB - scoreA;
+                    });
+                const target = candidates[0] || 'blank';
+                rounded[target] += needIncrease ? 1 : -1;
+                diff += needIncrease ? -1 : 1;
+            }
+
+            return {
+                blank: rounded.blank,
+                choice: rounded.choice,
+                qa: rounded.qa
+            };
+        }
+
+        function sortGroupsByExamOrder(groups) {
+            const orderMap = { blank: 0, choice: 1, qa: 2 };
+            return [...groups]
+                .map((group, index) => ({ group, index }))
+                .sort((a, b) => {
+                    const typeA = normalizeGroupType(a.group?.type, a.group?.title);
+                    const typeB = normalizeGroupType(b.group?.type, b.group?.title);
+                    const orderA = orderMap[typeA] ?? 99;
+                    const orderB = orderMap[typeB] ?? 99;
+                    if (orderA !== orderB) return orderA - orderB;
+                    return a.index - b.index;
+                })
+                .map(item => item.group);
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function sanitizeFileName(name) {
+            return String(name || '试卷').replace(/[\\/:*?"<>|]/g, '_').trim() || '试卷';
+        }
+
+        function toPositiveInt(value, fallback) {
+            const num = Number(value);
+            return Number.isFinite(num) && num > 0 ? Math.round(num) : fallback;
+        }
+
+        function normalizeGroupType(typeValue, titleValue = '') {
+            const typeText = String(typeValue || '').toLowerCase();
+            const titleText = String(titleValue || '');
+            if (/choice|single|select/.test(typeText) || /选择题/.test(titleText)) return 'choice';
+            if (/blank|fill/.test(typeText) || /填空题/.test(titleText)) return 'blank';
+            if (/qa|essay|subjective|solution|proof/.test(typeText) || /解答题|证明题|计算题/.test(titleText)) return 'qa';
+            return typeText || 'qa';
+        }
+
+        function parseScoreFromText(text) {
+            const scoreMatch = String(text || '').match(/（\s*(\d+)\s*分\s*）/);
+            if (!scoreMatch) return null;
+            return toPositiveInt(scoreMatch[1], null);
+        }
+
+        function resolveItemScore(item, groupPerItemScore, groupType) {
+            const fromItem = toPositiveInt(item?.score, null);
+            if (fromItem) return fromItem;
+            const fromStem = parseScoreFromText(item?.stem);
+            if (fromStem) return fromStem;
+            if (groupType === 'qa') return toPositiveInt(groupPerItemScore, null);
+            return null;
+        }
+
+        function isSubjectiveGroup(groupType, groupTitle) {
+            return normalizeGroupType(groupType, groupTitle) === 'qa';
+        }
+
+        function resolveAnswerSpaceLines(group, item) {
+            const directLines = toPositiveInt(item?.answerSpaceLines, null);
+            if (directLines) return Math.min(16, Math.max(4, directLines));
+
+            const stemText = String(item?.stem || '');
+            const subQuestionCount = (stemText.match(/（\d+）/g) || []).length;
+            let lines = 6 + Math.max(0, subQuestionCount - 1) * 2;
+            if (item?.figure) lines += 1;
+            if (stemText.length > 120) lines += 1;
+            return Math.min(14, Math.max(5, lines));
+        }
+
+        function buildAnswerSpace(lines) {
+            const safeLines = Math.min(18, Math.max(4, toPositiveInt(lines, 6)));
+            const blankHeight = safeLines * 24;
+            return `<div class="q-write-space" data-lines="${safeLines}" style="height:${blankHeight}px; min-height:${blankHeight}px;">&nbsp;</div>`;
+        }
+
+        function getSectionLabel(index) {
+            return SECTION_LABELS[index] || `${index + 1}`;
+        }
+
+        function resolveGroupTitle(group, groupIndex) {
+            const groupType = normalizeGroupType(group?.type, group?.title);
+            const defaults = GROUP_DEFAULTS[groupType] || GROUP_DEFAULTS.qa;
+            const sectionLabel = getSectionLabel(groupIndex);
+            const items = Array.isArray(group?.items) ? group.items : [];
+            const itemCount = items.length;
+            const perItemScore = toPositiveInt(group?.perQuestionScore ?? group?.scorePerQuestion, defaults.score);
+            const explicitTotal = toPositiveInt(group?.totalScore, null);
+
+            const itemScores = items
+                .map(item => resolveItemScore(item, perItemScore, groupType))
+                .filter(score => Number.isFinite(score) && score > 0);
+            const scoreTotalFromItems = itemScores.length ? itemScores.reduce((sum, score) => sum + score, 0) : null;
+            const totalScore = explicitTotal || scoreTotalFromItems || itemCount * perItemScore;
+
+            const hasExistingSpec = String(group?.title || '').includes('本大题共');
+            if (hasExistingSpec) {
+                return String(group.title).replace(/^([一二三四五六七八九十]+)[、.．]*/, `${sectionLabel}、`);
+            }
+
+            const customInstruction = String(group?.instruction || '').trim();
+            const instructionText = customInstruction || defaults.instruction;
+            const canUseUniformScore = itemScores.length <= 1 || new Set(itemScores).size <= 1;
+            const scoreText = canUseUniformScore
+                ? `每题${perItemScore}分，共${totalScore}分。`
+                : `共${totalScore}分。`;
+            return `${sectionLabel}、${defaults.name}（本大题共${itemCount}题，${scoreText}${instructionText}）`;
+        }
+
+        function resolvePaperHeader(data, displayTitle) {
+            const subject = document.getElementById('subject').value || '数学';
+            const grade = document.getElementById('grade').value || '';
+            const totalScore = toPositiveInt(data?.totalScore, 150);
+            const durationMinutes = toPositiveInt(data?.durationMinutes, 120);
+            const year = toPositiveInt(data?.year, new Date().getFullYear());
+            const examType = document.getElementById('examType').value;
+            const examTypeName = EXAM_TYPE_NAMES[examType] || '考试';
+
+            const mainTitle = data?.paperMainTitle
+                || (grade.includes('高中')
+                    ? `${year}年普通高等学校招生全国统一考试`
+                    : `${year}年${grade}${subject}${examTypeName}`);
+            const subTitle = data?.paperSubTitle || `${subject}试卷`;
+            const meta = data?.paperMeta || `（考试时间${durationMinutes}分钟，满分${totalScore}分）`;
+
+            return { mainTitle, subTitle, meta, totalScore, durationMinutes, displayTitle };
+        }
+
+        async function waitForPendingFigures() {
+            if (!pendingFigureTasks.length) return;
+            await Promise.allSettled(pendingFigureTasks);
+        }
+
+        // 预设Demo数据
+        const DEMO_DATA = {
+            title: "高中数学必修一 · 三角函数期末综合测试",
+            paperMainTitle: "2026年普通高等学校招生全国统一考试",
+            paperSubTitle: "数学试卷",
+            paperMeta: "（考试时间120分钟，满分150分）",
+            durationMinutes: 120,
+            totalScore: 150,
+            questions: [
+                {
+                    type: "choice",
+                    title: "一、选择题（本大题共8小题，每小题5分，共40分）",
+                    items: [
+                        { index: 1, stem: "已知角 α 的终边经过点 P(-3, 4)，则 sin α 的值为（  ）", options: ["A. 4/5", "B. 3/5", "C. -3/5", "D. -4/5"] },
+                        { index: 2, stem: "函数 y = sin(2x + π/3) 的最小正周期是（  ）", options: ["A. 4π", "B. 2π", "C. π", "D. π/2"] },
+                        { index: 3, stem: "下列函数中，既是偶函数又在区间 (0, π/2) 上单调递增的是（  ）", options: ["A. y=sin x", "B. y=cos x", "C. y=|sin x|", "D. y=|cos x|"] },
+                        { index: 4, stem: "若 sin(π/2 - α) = 1/3，则 cos 2α =（  ）", options: ["A. 7/9", "B. -7/9", "C. 1/9", "D. -1/9"] },
+                        { index: 5, stem: "为了得到函数 y = sin(2x - π/3) 的图像，只需把 y = sin 2x 的图像（  ）", options: ["A. 向左平移 π/6", "B. 向右平移 π/6", "C. 向左平移 π/3", "D. 向右平移 π/3"] },
+                        { index: 6, stem: "函数 f(x) = Asin(ωx + φ) 的部分图像如图所示，则 f(π/4) = （  ）", options: ["A. √2", "B. -√2", "C. 1", "D. -1"] },
+                        { index: 7, stem: "在 △ABC 中，若 sin A > sin B，则 A > B 是（  ）", options: ["A. 充分不必要条件", "B. 必要不充分条件", "C. 充要条件", "D. 既不充分也不必要条件"] },
+                        { index: 8, stem: "设函数 f(x) = sin x - cos x，则 f(x) 的最大值为（  ）", options: ["A. 1", "B. √2", "C. 2", "D. 2√2"] }
+                    ]
+                },
+                {
+                    type: "blank",
+                    title: "二、填空题（本大题共4小题，每小题5分，共20分）",
+                    items: [
+                        { index: 9, stem: "若 tan α = 2，则 sin 2α = ______。" },
+                        { index: 10, stem: "计算：sin 15° cos 15° = ______。" },
+                        { index: 11, stem: "函数 y = 2cos²x - 1 的值域是 ______。" },
+                        { index: 12, stem: "已知 f(x) = sin(ωx) (ω>0) 在 [0, 1] 上至少有 2 个零点，则 ω 的取值范围是 ______。" }
+                    ]
+                },
+                {
+                    type: "qa",
+                    title: "三、解答题（本大题共4小题，共40分）",
+                    items: [
+                        { index: 13, score: 10, answerSpaceLines: 8, stem: "（10分）已知 tan α = 3，求下列各式的值：\n(1) (sin α - 2cos α) / (2sin α + cos α)；\n(2) sin²α - sin α cos α + 2cos²α。" },
+                        { index: 14, score: 10, answerSpaceLines: 8, stem: "（10分）已知函数 f(x) = 2sin(ωx + φ) (ω>0, |φ|<π/2) 的部分图像如图所示，且 f(0) = 1，f(π/6) = 2。\n(1) 求 ω 和 φ 的值；\n(2) 求函数 f(x) 的单调递增区间。" },
+                        { index: 15, score: 10, answerSpaceLines: 8, stem: "（10分）设函数 f(x) = √3 sin 2x + cos 2x。\n(1) 求 f(x) 的最大值及此时 x 的集合；\n(2) 若 f(α) = 1，且 α ∈ (0, π/2)，求 α 的值。" },
+                        { index: 16, score: 10, answerSpaceLines: 9, stem: "（10分）某港口水深 y (米) 关于时间 t (小时, 0≤t≤24) 的函数关系式为 y = 3sin(π/6 * t + φ) + k。\n(1) 若该港口水深最大值为 10 米，最小值为 4 米，求 k 的值；\n(2) 在 (1) 的条件下，若某船只要在水深不低于 7 米时进港，求该船只进港的时间段。" }
+                    ]
+                }
+            ],
+            answers: [
+                "1. A [解析] r=5, y=4, sinα=y/r=4/5",
+                "2. C [解析] T=2π/ω=2π/2=π",
+                "3. C [解析] y=|sin x|是偶函数且在(0, π/2)递增",
+                "4. D [解析] sin(π/2-α)=cosα=1/3, cos2α=2cos²α-1=-7/9",
+                "5. B [解析] 2(x - π/6) = 2x - π/3",
+                "6. A [解析] ...",
+                "7. C [解析] 正弦定理",
+                "8. B [解析] 辅助角公式 √2sin(x - π/4)",
+                "9. 4/5 [解析] ...",
+                "10. 1/4 [解析] ...",
+                "11. [-1, 1] [解析] ...",
+                "12. [π, +∞) [解析] ...",
+                "13. (1) 1/7; (2) 4/5",
+                "14. (1) ω=2, φ=π/6; (2) ...",
+                "15. (1) 2, kπ+π/6; (2) π/12",
+                "16. (1) k=7; (2) ..."
+            ]
+        };
+
+        async function generateExam() {
+            loadingEl.style.display = 'flex';
+
+            const subject = document.getElementById('subject').value;
+            const grade = document.getElementById('grade').value;
+            const topic = getSelectedTopic();
+            const difficulty = parseInt(document.getElementById('difficulty').value);
+            const examType = document.getElementById('examType').value;
+            const pageCount = parseInt(document.getElementById('pageCount').value);
+            const questionCount = parseInt(document.getElementById('questionCount').value);
+
+            if (!topic) {
+                alert("请选择或输入知识点！");
+                loadingEl.style.display = 'none';
+                return;
+            }
+
+            // 根据试卷类型和页数计算题量
+            const examTypeName = EXAM_TYPE_NAMES[examType] || '考试';
+            const qCount = distributeQuestionCounts(questionCount, QUESTION_RATIO);
+            const difficultyProfile = getDifficultyProfile(difficulty);
+            const difficultyDesc = difficultyProfile.hint;
+            const totalScoreTarget = 150;
+            const objectiveScore = qCount.choice * 5 + qCount.blank * 5;
+            const qaTotalScore = Math.max(qCount.qa * 10, totalScoreTarget - objectiveScore);
+
+            try {
+                const prompt = `你是一个${grade}${subject}资深教师。请出一份关于"${topic}"的${examTypeName}。
+
+【试卷要求】：
+- 难度系数：${difficulty}/10，${difficultyDesc}
+- 难度强化要求：${difficultyProfile.prompt}
+- 页数要求：${pageCount}页A4纸（每页约40-45行内容）
+- 试卷类型：${examTypeName}
+- 版式要求：严格对齐“高考数学空白卷”样式，包含三行标题、题型说明、分值标注、解答题留白。
+- 总题量：${questionCount}题（按填空:选择:解答 = 12:4:5 四舍五入分配）
+
+【题量要求】：
+1. 填空题：${qCount.blank}道（每题1-2个空，题干必须完整）
+2. 选择题：${qCount.choice}道（每题题干适中，4个选项，每个选项必须有具体内容）
+3. 解答题：${qCount.qa}道（每题必须有完整题干和小问）
+
+【图片要求 - 非常重要】：
+- 如果题目需要配图，请在该题目中添加 "figure" 字段
+- figure字段必须包含详细的图形描述，以便系统能准确生成图形
+- 描述要具体明确，包括：
+  * 几何图形：点的名称、边的关系、角度标注（如"直角三角形ABC，其中角B为直角，AB=3，BC=4"）
+  * 立体图形：形状、堆叠方式、数量（如"3×3×2的立方体堆叠，共18个小立方体"）
+  * 函数图像：函数类型、关键点（如"在坐标系中画出y=x²的抛物线，顶点在原点"）
+  * 实物图形：用哪些选项、物品特征（如"四个物品：A是圆形足球，B是长方体书本，C是正方体魔方，D是圆柱形茶叶罐"）
+- 不要使用模糊描述如"如图所示"，必须具体说明图形内容
+
+【重要 - 数学公式格式】：
+- 禁止使用LaTeX格式（如 $\frac{}{}$、$\sqrt{}$、$\times$ 等）
+- 必须使用普通文字和Unicode符号表示数学：
+  * 分数用斜杠：如 "x²/4" 而不是 "$\frac{x^2}{4}$"
+  * 根号用文字或符号：如 "√3" 或 "根号3" 而不是 "$\sqrt{3}$"
+  * 乘号用 × 或 · ：如 "2×3" 而不是 "$2\times3$"
+  * 指数用上标符号：如 "x²" "y³" 而不是 "$x^2$"
+  * π用文字"π"，不要用 "$\pi$"
+- 这是给学生看的试卷，必须是普通可读文字！
+
+【其他要求】：
+- 每道题目的stem字段必须包含完整的题目内容
+- 选择题的options数组必须包含4个完整选项
+- 每道解答题必须返回 score（分值）与 answerSpaceLines（建议留白行数，4~14行）
+- 不要返回空字段或undefined
+
+要求严格返回以下JSON格式：
+{
+    "title": "${grade}${subject} · ${examTypeName}",
+    "paperMainTitle": "2026年普通高等学校招生全国统一考试",
+    "paperSubTitle": "${subject}试卷",
+    "paperMeta": "（考试时间120分钟，满分150分）",
+    "durationMinutes": 120,
+    "totalScore": 150,
+    "questions": [
+        {
+            "type": "blank",
+            "title": "一、填空题（本大题共${qCount.blank}题，每题5分，共${qCount.blank * 5}分。考生应在答题纸的相应位置直接填写结果。）",
+            "perQuestionScore": 5,
+            "totalScore": ${qCount.blank * 5},
+            "instruction": "考生应在答题纸的相应位置直接填写结果。",
+            "items": [
+                { "index": 1, "stem": "具体题目内容______。" }
+            ]
+        },
+        {
+            "type": "choice",
+            "title": "二、选择题（本大题共${qCount.choice}题，每题5分，共${qCount.choice * 5}分。每题有且仅有一个正确选项。）",
+            "perQuestionScore": 5,
+            "totalScore": ${qCount.choice * 5},
+            "instruction": "每题有且仅有一个正确选项。",
+            "items": [
+                { "index": ${qCount.blank + 1}, "stem": "具体题目内容", "options": ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"] },
+                { "index": ${qCount.blank + 2}, "stem": "需要图形的题目（如图所示...）", "figure": "图形描述如：直角三角形ABC", "options": ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"] }
+            ]
+        },
+        {
+            "type": "qa",
+            "title": "三、解答题（本大题共${qCount.qa}题，共${qaTotalScore}分。解答下列各题必须写出必要的步骤。）",
+            "totalScore": ${qaTotalScore},
+            "instruction": "解答下列各题必须写出必要的步骤。",
+            "items": [
+                { "index": ${qCount.blank + qCount.choice + 1}, "score": 12, "answerSpaceLines": 8, "stem": "完整的解答题内容", "figure": "需要的图形描述" }
+            ]
+        }
+    ],
+    "answers": ["1. A [解析] 解析内容", "2. B [解析] 解析内容"]
+}`;
+
+                const response = await fetch(API_CONFIG.baseURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+
+                const resData = await parseApiJsonResponse(response);
+                const content = resData.choices[0].message.content;
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[0]);
+                    renderExam(data);
+                } else {
+                    alert("AI生成格式错误，请重试");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("AI出题生成失败，请重试");
+            }
+
+            loadingEl.style.display = 'none';
+        }
+
+        async function renderExam(data) {
+            if (!data || !data.title) {
+                alert('试卷数据格式错误');
+                return;
+            }
+
+            // 处理标题：移除知识点部分，只保留年级、科目和考试类型
+            let displayTitle = data.title || '未命名试卷';
+            // 如果标题包含多个"·"分隔的部分，只保留第一部分（年级科目）和最后一部分（考试类型）
+            const titleParts = displayTitle.split('·').map(p => p.trim());
+            if (titleParts.length > 2) {
+                // 保留第一部分和最后一部分，去掉中间的知识点
+                displayTitle = `${titleParts[0]} · ${titleParts[titleParts.length - 1]}`;
+            }
+
+            const headerData = resolvePaperHeader(data, displayTitle);
+            paperMainTitleEl.innerText = headerData.mainTitle;
+            paperTitleEl.innerText = headerData.subTitle;
+            paperMetaEl.innerText = headerData.meta;
+            currentPaperFileTitle = sanitizeFileName(displayTitle);
+
+            let html = '';
+            const figureTasks = [];
+            const subject = document.getElementById('subject').value;
+
+            if (Array.isArray(data.questions)) {
+                const orderedGroups = sortGroupsByExamOrder(data.questions);
+                orderedGroups.forEach((group, groupIndex) => {
+                    if (!group || !Array.isArray(group.items)) return;
+
+                    const groupType = normalizeGroupType(group.type, group.title);
+                    const groupTitle = resolveGroupTitle(group, groupIndex);
+                    const groupPerItemScore = toPositiveInt(group?.perQuestionScore ?? group?.scorePerQuestion, GROUP_DEFAULTS[groupType]?.score || 0);
+                    const isSubjective = isSubjectiveGroup(groupType, group.title);
+
+                    html += `<div class="question-group question-group--${groupType}" data-type="${groupType}">
+                    <div class="group-title">${escapeHtml(groupTitle)}</div>`;
+
+                    group.items.forEach(item => {
+                        if (!item) return;
+
+                        const indexText = item.index !== undefined && item.index !== null ? escapeHtml(item.index) : '';
+                        const itemScore = resolveItemScore(item, groupPerItemScore, groupType);
+                        let stemRaw = String(item.stem || '题目内容缺失');
+                        if (itemScore) {
+                            stemRaw = stemRaw.replace(/^\s*（\s*\d+\s*分\s*）\s*/, '');
+                        }
+                        const stem = escapeHtml(stemRaw);
+                        const needWriteSpace = isSubjective;
+
+                        html += `<div class="question-item ${needWriteSpace ? 'question-item--qa has-write-space' : ''}">
+                        <div class="q-stem">${indexText ? `<span class="q-index">${indexText}．</span>` : ''}${itemScore ? `<span class="q-score">（${itemScore}分）</span>` : ''}${stem}</div>`;
+
+                        if (item.figure) {
+                            const figureId = `figure_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+                            html += `<div class="q-figure" id="${figureId}">
+                                <div style="padding: 15px; text-align: center; color: #888; font-size: 12px;">
+                                    图形生成中...
+                                </div>
+                            </div>`;
+                            figureTasks.push({ id: figureId, desc: item.figure, subject });
+                        }
+
+                        if (groupType === 'choice' && Array.isArray(item.options)) {
+                            const optionHtml = item.options
+                                .filter(Boolean)
+                                .map(opt => `<div class="q-option">${escapeHtml(opt)}</div>`)
+                                .join('');
+                            html += `<div class="q-options">${optionHtml}</div>`;
+                        }
+
+                        if (needWriteSpace) {
+                            html += buildAnswerSpace(resolveAnswerSpaceLines(group, item));
+                        }
+
+                        html += `</div>`;
+                    });
+                    html += `</div>`;
+                });
+            }
+
+            examContentEl.innerHTML = html;
+
+            if (data.answers && Array.isArray(data.answers)) {
+                answerContentEl.innerHTML = data.answers
+                    .filter(a => a)
+                    .map(a => `<div>${escapeHtml(a)}</div>`)
+                    .join('<br>');
+            } else {
+                answerContentEl.innerHTML = '<div>暂无答案解析</div>';
+            }
+
+            if (document.getElementById('showAnswer').checked) {
+                answerAreaEl.style.display = 'block';
+            } else {
+                answerAreaEl.style.display = 'none';
+            }
+
+            pendingFigureTasks = figureTasks.map(figureTask => generateFigure(figureTask.desc, figureTask.subject)
+                .then(figureHtml => {
+                    const el = document.getElementById(figureTask.id);
+                    if (el && figureHtml) {
+                        el.innerHTML = figureHtml;
+                    } else if (el) {
+                        el.innerHTML = `<div style="border: 1px dashed #ccc; padding: 10px; text-align: center; color: #999; font-size: 12px; border-radius: 4px;">[图: ${escapeHtml(figureTask.desc)}]</div>`;
+                    }
+                })
+                .catch(err => {
+                    console.error('图片生成失败:', err);
+                    const el = document.getElementById(figureTask.id);
+                    if (el) {
+                        el.innerHTML = `<div style="border: 1px dashed #ccc; padding: 10px; text-align: center; color: #999; font-size: 12px;">[图: ${escapeHtml(figureTask.desc)}]</div>`;
+                    }
+                }));
+        }
+
+        document.getElementById('generateBtn').addEventListener('click', () => generateExam());
+
+        // 导出Word逻辑 - 直接复用当前试卷DOM，确保留白和题型版式一致
+        async function exportToWord() {
+            await waitForPendingFigures();
+
+            const fileTitle = currentPaperFileTitle;
+            const showAnswer = document.getElementById('showAnswer').checked;
+
+            // 将SVG转换为base64图片（Word不支持SVG）
+            async function svgToBase64(svgElement) {
+                return new Promise((resolve) => {
+                    try {
+                        const svgData = new XMLSerializer().serializeToString(svgElement);
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const img = new Image();
+
+                        // 获取SVG尺寸
+                        const width = svgElement.getAttribute('width') || svgElement.viewBox?.baseVal?.width || 300;
+                        const height = svgElement.getAttribute('height') || svgElement.viewBox?.baseVal?.height || 200;
+                        canvas.width = parseInt(width) || 300;
+                        canvas.height = parseInt(height) || 200;
+
+                        img.onload = function () {
+                            ctx.fillStyle = 'white';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(img, 0, 0);
+                            resolve(canvas.toDataURL('image/png'));
+                        };
+                        img.onerror = function () {
+                            resolve(null);
+                        };
+                        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                    } catch (e) {
+                        console.error('SVG转换失败:', e);
+                        resolve(null);
+                    }
+                });
+            }
+
+            const clonedPaper = document.getElementById('paper').cloneNode(true);
+            clonedPaper.classList.add('word-export', 'export-mode');
+            clonedPaper.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+
+            if (!showAnswer) {
+                const answerBlock = clonedPaper.querySelector('.answer-key');
+                if (answerBlock) answerBlock.remove();
+            }
+
+            const svgElements = clonedPaper.querySelectorAll('svg');
+
+            for (const svg of svgElements) {
+                const base64 = await svgToBase64(svg);
+                if (base64) {
+                    const img = document.createElement('img');
+                    img.src = base64;
+                    img.style.maxWidth = '200px';
+                    img.style.height = 'auto';
+                    img.style.display = 'block';
+                    img.style.margin = '10px auto';
+                    svg.parentNode.replaceChild(img, svg);
+                }
+            }
+
+            const processedPaper = clonedPaper.outerHTML;
+
+            const html = `
+                <!DOCTYPE html>
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                    <meta charset='utf-8'>
+                    <title>${escapeHtml(fileTitle)}</title>
+                    <!--[if gte mso 9]>
+                    <xml>
+                        <w:WordDocument>
+                            <w:View>Print</w:View>
+                            <w:Zoom>100</w:Zoom>
+                            <w:DoNotOptimizeForBrowser/>
+                        </w:WordDocument>
+                    </xml>
+                    <![endif]-->
+                    <style>
+                        @page {
+                            size: A4;
+                            margin: 23mm 17mm 23mm 17mm;
+                        }
+                        body {
+                            margin: 0;
+                            font-family: SimSun, 'Songti SC', '宋体', serif; 
+                            font-size: 10.5pt;
+                            line-height: 1.38;
+                            color: #000;
+                        }
+                        .a4-paper {
+                            width: auto;
+                            min-height: auto;
+                            padding: 0;
+                            box-shadow: none;
+                        }
+                        .exam-header { 
+                            text-align: center; 
+                            margin-bottom: 10pt; 
+                        }
+                        .exam-main-title {
+                            font-size: 16pt;
+                            font-weight: 700;
+                            line-height: 1.35;
+                            letter-spacing: 0.5pt;
+                        }
+                        .exam-title { 
+                            font-size: 16pt;
+                            font-weight: 700;
+                            line-height: 1.35;
+                            margin-top: 2pt;
+                        }
+                        .exam-meta {
+                            font-size: 12pt;
+                            font-weight: 700;
+                            margin-top: 3pt;
+                            margin-bottom: 2pt;
+                        }
+                        .question-group {
+                            margin-bottom: 6pt;
+                        }
+                        .group-title {
+                            font-size: 12pt;
+                            font-weight: 700;
+                            line-height: 1.6;
+                            margin-top: 6pt;
+                            margin-bottom: 2pt;
+                        }
+                        .question-item {
+                            margin-bottom: 4pt;
+                            font-size: 10.5pt;
+                            line-height: 1.6;
+                            page-break-inside: avoid;
+                            break-inside: avoid;
+                        }
+                        .question-item.has-write-space {
+                            margin-bottom: 6pt;
+                        }
+                        .q-stem {
+                            white-space: pre-line;
+                        }
+                        .q-index {
+                            font-weight: 500;
+                        }
+                        .q-score {
+                            font-weight: 700;
+                            margin-right: 3pt;
+                        }
+                        .q-options {
+                            margin-left: 16pt;
+                            margin-top: 2pt;
+                        }
+                        .q-option {
+                            display: inline-block;
+                            min-width: 44%;
+                            margin-bottom: 2pt;
+                            vertical-align: top;
+                        }
+                        .q-figure {
+                            margin: 6pt 0 6pt 16pt;
+                            text-align: center;
+                        }
+                        .q-figure img {
+                            max-width: 200px;
+                            height: auto;
+                        }
+                        .q-write-space {
+                            margin-top: 6pt;
+                            background: transparent;
+                            border: none;
+                            color: transparent;
+                            font-size: 1pt;
+                            line-height: 1pt;
+                            display: block;
+                            break-inside: avoid;
+                            page-break-inside: avoid;
+                            mso-height-source: userset;
+                            mso-line-height-rule: exactly;
+                        }
+                        .answer-key { 
+                            margin-top: 24pt; 
+                            border-top: 1px dashed #999;
+                            padding-top: 10pt;
+                            color: #444;
+                        }
+                        .answer-key .group-title {
+                            text-align: center;
+                        }
+                    </style>
+                
+</head>
+                <body>
+                    ${processedPaper}
+</body>
+                </html>
+            `;
+
+            const blob = new Blob(['\ufeff' + html], { type: 'application/msword;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${fileTitle}.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // 导出PDF功能
+        async function exportToPdf() {
+            const paper = document.getElementById('paper');
+            await waitForPendingFigures();
+            const hadExportMode = paper.classList.contains('export-mode');
+            const hadPdfExport = paper.classList.contains('pdf-export');
+
+            loadingEl.querySelector('div:last-child').innerText = '正在生成PDF，请稍候...';
+            loadingEl.style.display = 'flex';
+
+            try {
+                if (!window.html2canvas) {
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+                }
+                if (!window.jspdf) {
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+                }
+
+                const originalTransform = paper.style.transform;
+                const originalBoxShadow = paper.style.boxShadow;
+
+                paper.style.transform = 'none';
+                paper.style.boxShadow = 'none';
+                paper.classList.add('export-mode', 'pdf-export');
+
+                const canvas = await html2canvas(paper, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: false,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    imageTimeout: 15000,
+                    onclone: function (clonedDoc) {
+                        // 确保克隆的文档中SVG正确渲染
+                        const clonedPaper = clonedDoc.getElementById('paper');
+                        if (clonedPaper) {
+                            clonedPaper.style.transform = 'none';
+                            clonedPaper.style.boxShadow = 'none';
+                            clonedPaper.classList.add('export-mode', 'pdf-export');
+                        }
+                    }
+                });
+
+                paper.style.transform = originalTransform;
+                paper.style.boxShadow = originalBoxShadow;
+
+                const a4Width = 210;
+                const a4Height = 297;
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+
+                const imgWidth = a4Width;
+                const imgHeight = (canvas.height * a4Width) / canvas.width;
+
+                let heightLeft = imgHeight;
+                let position = 0;
+                let pageCount = 0;
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                heightLeft -= a4Height;
+                pageCount++;
+
+                while (heightLeft > 0) {
+                    position = -a4Height * pageCount;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= a4Height;
+                    pageCount++;
+                }
+
+                pdf.save(`${currentPaperFileTitle}.pdf`);
+
+            } catch (error) {
+                console.error('PDF导出失败:', error);
+                alert('PDF导出失败，请尝试使用浏览器打印功能(Ctrl+P)导出');
+            } finally {
+                if (!hadPdfExport) {
+                    paper.classList.remove('pdf-export');
+                }
+                if (!hadExportMode) {
+                    paper.classList.remove('export-mode');
+                }
+                loadingEl.style.display = 'none';
+                loadingEl.querySelector('div:last-child').innerText = '正在构建知识图谱与试题结构';
+            }
+        }
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        document.getElementById('exportPdfBtn').addEventListener('click', exportToPdf);
+        document.getElementById('exportWordBtn').addEventListener('click', exportToWord);
+
+        document.getElementById('showAnswer').addEventListener('change', (e) => {
+            answerAreaEl.style.display = e.target.checked ? 'block' : 'none';
+        });
+    </script>
+
+  <script src="/shared-global-nav.js" defer></script>
+</body>
+
+</html>
+
+

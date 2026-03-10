@@ -1,0 +1,13 @@
+{
+  "name": "holographic-exam-factory",
+  "version": "1.0.0",
+  "private": true,
+  "description": "全息试卷工厂本地服务",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "openai": "^6.27.0"
+  }
+}
