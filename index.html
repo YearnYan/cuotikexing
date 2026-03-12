@@ -1093,12 +1093,14 @@
         // 根据描述生成合适的图形 - 使用AI生成精确的SVG
         async function generateFigure(figureDesc, subject) {
             if (!figureDesc) return '';
+            const strictFigureDesc = ensureStrictFigureDescription(figureDesc, subject);
+            const subjectRule = getSubjectFigureStrictRule(subject);
 
             try {
                 // 调用AI生成精确的SVG代码
                 const prompt = `请根据以下描述生成一个精确的SVG图形代码。
 
-图形描述: ${figureDesc}
+图形描述: ${strictFigureDesc}
 科目: ${subject}
 
 要求:
@@ -1106,10 +1108,13 @@
 2. SVG的viewBox应为 "0 0 300 200"，确保图形比例合适
 3. 使用黑色线条(stroke="#333")，线宽2px，填充透明(fill="none")
 4. 所有文字标签使用font-size="14"
-5. 图形应该清晰、准确、符合教育场景
-6. 如果是几何图形，要标注点的名称（如A、B、C）
-7. 如果是物体图形（如足球、书本等），用简洁的线条画出轮廓
-8. 如果是堆叠的立方体，用3D效果画出来
+5. 图形应该清晰、准确、符合教育场景，严禁随意添加无关元素
+6. 必须严格落实“元素清单”中的每个元素，逐一对应，不可漏画，不可错位
+7. 必须严格落实“空间关系”：上下/左右/内外/中间/邻接/相交/重合/接触/包含/平行/垂直 等关系要几何上成立
+8. 若涉及点、线、面、坐标系、器材、连接线，位置关系必须精确且可判读
+9. 学科约束：${subjectRule}
+10. 图中标签与题干符号必须一致（如 A/B/C 点、F1/F2 力、I/U/R 等）
+11. 禁止比例失真导致关系错误，禁止把相交画成平行、把接触画成分离、把包含画成外部
 
 只返回SVG代码，不要任何其他文字说明。SVG代码示例格式:
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200">
@@ -1145,7 +1150,7 @@
             }
 
             // AI生成失败时，尝试使用预设的SVG生成器
-            const desc = figureDesc.toLowerCase();
+            const desc = strictFigureDesc.toLowerCase();
 
             if (desc.includes('三角形') || desc.includes('triangle')) {
                 if (desc.includes('直角')) {
@@ -1179,7 +1184,7 @@
             // 最后的备用方案：返回描述性占位符
             return `<div style="border: 1px solid #ccc; background: #f9f9f9; padding: 15px; text-align: center; margin: 10px 0; color: #666; font-size: 12px; border-radius: 4px;">
                 <div style="font-weight: bold; margin-bottom: 5px;">📊 图形</div>
-                <div>${figureDesc}</div>
+                <div>${strictFigureDesc}</div>
             </div>`;
         }
 
@@ -1573,6 +1578,19 @@
             9: { hint: 'Lv9：高考压轴以上，加入竞赛风格变式。', prompt: '高考压轴以上难度：整体高于高考真题，需加入更复杂的构造、参数讨论或反证思路。' },
             10: { hint: 'Lv10：奥数/竞赛级，明显高于高考真题。', prompt: '奥数竞赛难度：题目应明显高于高考真题，达到省级竞赛或奥数训练强度。' }
         };
+        const CORE_SPATIAL_RELATION_WORDS = [
+            '上方', '下方', '左侧', '右侧', '中间', '内部', '外部',
+            '邻接', '相交', '重合', '接触', '包含', '平行', '垂直',
+            '固定', '共线', '共面', '对称', '同心'
+        ];
+        const SUBJECT_FIGURE_STRICT_RULES = {
+            数学: '点、线、面与坐标要一一对应；已知平行/垂直/相交/重合关系必须准确；长度、角度、函数关键点与题干一致。',
+            物理: '受力方向、运动方向、参照系、电路连接、光路走向、磁场方向、器材连接必须符合物理规律与单位逻辑。',
+            化学: '装置连接顺序、试剂位置、导管进出、液面高低、加热与冷凝方向、气体流向要符合实验规范。',
+            生物: '结构层次、器官组织位置、流程方向、标注名称和箭头方向必须符合生物学事实与教材表述。',
+            地理: '方向（东南西北）、地形高低、河流流向、风向与气压、板块边界与经纬网位置关系必须一致。',
+            default: '图中元素名称、数量、相对位置、连接关系必须与题干完全一致，禁止添加无关元素。'
+        };
         const SUBJECT_SCHEMA_ALIAS = {
             道德与法治: '政治',
             科学: '物理'
@@ -1682,6 +1700,11 @@
 
         function normalizeSubject(subject) {
             return SUBJECT_SCHEMA_ALIAS[String(subject || '').trim()] || String(subject || '').trim();
+        }
+
+        function getSubjectFigureStrictRule(subject) {
+            const normalized = normalizeSubject(subject);
+            return SUBJECT_FIGURE_STRICT_RULES[normalized] || SUBJECT_FIGURE_STRICT_RULES.default;
         }
 
         function getSubjectExamSchema(subject) {
@@ -2188,6 +2211,57 @@
                 .slice(0, maxLength);
         }
 
+        function getMatchedSpatialRelations(text) {
+            const safeText = String(text || '');
+            return CORE_SPATIAL_RELATION_WORDS.filter(word => safeText.includes(word));
+        }
+
+        function ensureStrictFigureDescription(description, subject, stemText = '') {
+            const cleanedDesc = toStudentFriendlyText(description || '');
+            const cleanedStem = toStudentFriendlyText(stemText || '');
+            const relationHits = getMatchedSpatialRelations(`${cleanedDesc} ${cleanedStem}`);
+            const relationOk = relationHits.length >= 2;
+            const hasStructureTag = /(元素|关系|约束|位置|方向|连接)/.test(cleanedDesc);
+            const lengthOk = cleanedDesc.length >= 36;
+            const subjectRule = getSubjectFigureStrictRule(subject);
+
+            if (cleanedDesc && relationOk && hasStructureTag && lengthOk) {
+                return cleanedDesc;
+            }
+
+            const relationText = relationHits.length
+                ? relationHits.join('、')
+                : '上下、左右、内外、中间、相交、平行、垂直、包含';
+            const elementSeed = cleanedDesc || cleanedStem || '按题干完整列出图中所有点、线、面、装置、符号和数量';
+
+            return `元素清单：${elementSeed}。空间关系：明确${relationText}等位置关系，至少给出3条可判定关系，并保证点线面与标注一一对应。科学约束：${subjectRule}。禁止漏画、错位、重叠错误、无关元素。`;
+        }
+
+        function enforceFigureConstraintsOnQuestions(paperData, subject, forceAllQuestionsFigure = false) {
+            if (!paperData || !Array.isArray(paperData.questions)) return paperData;
+
+            paperData.questions.forEach(group => {
+                if (!group || !Array.isArray(group.items)) return;
+
+                group.items.forEach(item => {
+                    if (!item) return;
+                    item.stem = toStudentFriendlyText(item.stem || '');
+
+                    const needFigure = forceAllQuestionsFigure || Boolean(String(item.figure || '').trim());
+                    if (!needFigure) return;
+
+                    const sourceDesc = item.figure || item.stem || '根据题干绘制示意图';
+                    item.figure = ensureStrictFigureDescription(sourceDesc, subject, item.stem);
+
+                    if (!/^如图所示/.test(item.stem)) {
+                        item.stem = `如图所示，${item.stem}`;
+                    }
+                });
+            });
+
+            return paperData;
+        }
+
         function setAnalysisStatus(text, tone = 'normal') {
             const statusEl = document.getElementById('analysisStatus');
             if (!statusEl) return;
@@ -2314,7 +2388,10 @@
 3. 给出正确答案（correctAnswer）
 4. 给出详细解析（analysis）
 5. 判断原题是否依赖图形（hasFigure：true/false）
-6. 如果依赖图形，补充图形描述（figureDescription）
+6. 如果依赖图形，补充图形描述（figureDescription），必须包含：
+   - 元素清单（点/线/面/器材/装置/符号）
+   - 空间关系（上下/左右/内外/中间/相交/平行/垂直/包含等，至少3条）
+   - 学科约束（符合该学科规律与真实世界知识）
 7. 尽量还原题干文本（originalQuestion）
 
 必须返回JSON，字段如下：
@@ -2425,8 +2502,12 @@
 
         function normalizeGeneratedPaper(rawData, analysis) {
             const hasFigureRequired = Boolean(analysis?.hasFigure);
-            const figureDesc = toStudentFriendlyText(analysis?.figureDescription || '')
-                || `请依据“${analysis?.knowledgePoints?.[0] || '核心考点'}”绘制清晰图形`;
+            const figureDesc = ensureStrictFigureDescription(
+                toStudentFriendlyText(analysis?.figureDescription || '')
+                || `请依据“${analysis?.knowledgePoints?.[0] || '核心考点'}”绘制清晰图形`,
+                analysis?.subject || '',
+                analysis?.originalQuestion || ''
+            );
             const groupBlueprints = [
                 { title: '相似题', instruction: '与原题思路相似，但问题情境和条件要有实质变化。' },
                 { title: '变式题', instruction: '基于原题做结构变化，考查迁移能力。' },
@@ -2452,12 +2533,20 @@
                     };
 
                     if (hasFigureRequired) {
-                        item.figure = toStudentFriendlyText(sourceItem.figure || '') || figureDesc;
+                        item.figure = ensureStrictFigureDescription(
+                            toStudentFriendlyText(sourceItem.figure || '') || figureDesc,
+                            analysis?.subject || '',
+                            item.stem
+                        );
                         if (!/^如图所示/.test(item.stem)) {
                             item.stem = `如图所示，${item.stem}`;
                         }
                     } else if (sourceItem.figure) {
-                        item.figure = toStudentFriendlyText(sourceItem.figure);
+                        item.figure = ensureStrictFigureDescription(
+                            toStudentFriendlyText(sourceItem.figure),
+                            analysis?.subject || '',
+                            item.stem
+                        );
                     }
 
                     items.push(item);
@@ -2481,7 +2570,7 @@
                 ensuredAnswers.push(fromAi || `${i + 1}. 参考答案待补充 [解析] 可根据课堂讲解完善。`);
             }
 
-            return {
+            const normalized = {
                 title: `${toStudentFriendlyText(analysis.grade)}${toStudentFriendlyText(analysis.subject)} · 错题同源训练卷`,
                 paperMainTitle: '错题克星专项训练卷',
                 paperSubTitle: `${analysis.subject}试卷`,
@@ -2491,6 +2580,7 @@
                 questions: groups,
                 answers: ensuredAnswers
             };
+            return enforceFigureConstraintsOnQuestions(normalized, analysis?.subject || '', hasFigureRequired);
         }
 
         async function generateExam() {
@@ -2508,6 +2598,8 @@
             const analysis = wrongQuestionContext.analysis;
             const subject = normalizeSubject(analysis.subject || '数学');
             const grade = String(analysis.grade || '高中一年级');
+            const subjectFigureRule = getSubjectFigureStrictRule(subject);
+            const spatialRelationText = CORE_SPATIAL_RELATION_WORDS.join('、');
             const figureRule = analysis.hasFigure
                 ? '原题包含图形，全部9道题都必须包含figure字段，并给出可绘制的详细图形描述。'
                 : '按题意决定是否加图；若需要图形，figure字段必须清晰可绘制。';
@@ -2527,8 +2619,13 @@
 3. 第二类：变式题3题。要求在结构、条件或设问上有明显变化，体现迁移。
 4. 第三类：综合应用题3题。要求基于考点结合生活真实场景，体现应用能力。
 5. ${figureRule}
-6. 每题都给出可判分答案，解析要点清晰。
-7. 只返回JSON，不要任何多余文字。
+6. 任何带图题目的figure字段必须是“强约束图形说明”，至少包含三段：
+   - 元素清单：列出全部元素（点/线/面/器材/装置/符号/数量），一一对应
+   - 空间关系：至少3条可判定关系，关系词从以下集合选择：${spatialRelationText}
+   - 学科约束：${subjectFigureRule}
+7. 图形必须与题干完全一致，禁止漏画、错位、比例关系错误、无关元素、错误连接。
+8. 每题都给出可判分答案，解析要点清晰。
+9. 只返回JSON，不要任何多余文字。
 
 【JSON格式】
 {
