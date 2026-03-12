@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全息试卷工厂</title>
+    <title>错题克星</title>
     <style>
         *,
         *::before,
@@ -156,6 +156,114 @@
             display: flex;
             gap: 10px;
             margin-bottom: 5px;
+        }
+
+        .upload-dropzone {
+            border: 1px dashed var(--line-blue);
+            background: rgba(100, 255, 218, 0.06);
+            padding: 18px 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .upload-dropzone:hover {
+            background: rgba(100, 255, 218, 0.14);
+            border-color: #8cffdf;
+        }
+
+        .upload-dropzone.is-busy {
+            opacity: 0.75;
+            pointer-events: none;
+        }
+
+        .upload-main-text {
+            color: var(--line-blue);
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .upload-sub-text {
+            color: var(--text-dim);
+            font-size: 12px;
+            margin-top: 6px;
+            line-height: 1.6;
+        }
+
+        .upload-file-name {
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--text-main);
+            word-break: break-all;
+        }
+
+        .analysis-status {
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .analysis-status.success {
+            color: var(--line-blue);
+        }
+
+        .analysis-status.error {
+            color: #ff8c8c;
+        }
+
+        .analysis-panel {
+            margin-top: 12px;
+            border: 1px solid #2f4f64;
+            background: rgba(17, 34, 64, 0.78);
+            padding: 12px;
+            border-radius: 4px;
+        }
+
+        .analysis-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--line-blue);
+            margin-bottom: 10px;
+        }
+
+        .analysis-row {
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+
+        .analysis-label {
+            color: var(--text-dim);
+            margin-right: 8px;
+        }
+
+        .analysis-list {
+            padding-left: 18px;
+            margin-top: 4px;
+        }
+
+        .analysis-list li {
+            margin-bottom: 4px;
+            color: var(--text-main);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .analysis-chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .analysis-chip {
+            border: 1px solid #2c5960;
+            background: rgba(100, 255, 218, 0.08);
+            padding: 3px 8px;
+            font-size: 12px;
+            color: #b9f8e8;
+            border-radius: 12px;
         }
 
         input,
@@ -651,136 +759,35 @@
         <div class="container">
             <div class="console-panel">
                 <div>
-                    <h1>全息试卷工厂</h1>
-                    <p style="color: var(--text-dim); font-size: 12px;">HOLOGRAPHIC EXAM FACTORY</p>
+                    <h1>错题克星</h1>
+                    <p style="color: var(--text-dim); font-size: 12px;">WRONG QUESTION MASTER</p>
                 </div>
 
                 <div>
-                    <div class="section-title">科目选择</div>
-                    <select id="subject" onchange="onSubjectOrGradeChange()">
-                        <optgroup label="初中科目">
-                            <option value="语文">语文</option>
-                            <option value="数学" selected>数学</option>
-                            <option value="英语">英语</option>
-                            <option value="物理">物理</option>
-                            <option value="化学">化学</option>
-                            <option value="生物">生物</option>
-                            <option value="历史">历史</option>
-                            <option value="地理">地理</option>
-                            <option value="政治">政治</option>
-                        </optgroup>
-                        <optgroup label="高中科目">
-                            <option value="语文">语文</option>
-                            <option value="数学">数学</option>
-                            <option value="英语">英语</option>
-                            <option value="物理">物理</option>
-                            <option value="化学">化学</option>
-                            <option value="生物">生物</option>
-                            <option value="历史">历史</option>
-                            <option value="地理">地理</option>
-                            <option value="政治">政治</option>
-                        </optgroup>
-                    </select>
+                    <div class="section-title">上传错题</div>
+                    <div class="upload-dropzone" id="wrongQuestionUploadBox" role="button" tabindex="0">
+                        <input type="file" id="wrongQuestionFileInput"
+                            accept=".png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf" hidden>
+                        <div class="upload-main-text" id="uploadMainText">点击上传一道错题</div>
+                        <div class="upload-sub-text">支持 PNG / JPG / PDF，上传后自动进行AI分析</div>
+                        <div class="upload-file-name" id="uploadFileName">尚未选择文件</div>
+                    </div>
+                    <div id="analysisStatus" class="analysis-status">上传后将自动识别考点、答案与解析。</div>
+                    <div id="wrongQuestionAnalysis" class="analysis-panel" style="display:none;"></div>
                 </div>
 
-                <div>
-                    <div class="section-title">年级选择</div>
-                    <select id="grade" onchange="onSubjectOrGradeChange()">
-                        <optgroup label="初中">
-                            <option value="初中一年级">初中一年级</option>
-                            <option value="初中二年级">初中二年级</option>
-                            <option value="初中三年级">初中三年级</option>
-                        </optgroup>
-                        <optgroup label="高中">
-                            <option value="高中一年级" selected>高中一年级</option>
-                            <option value="高中二年级">高中二年级</option>
-                            <option value="高中三年级">高中三年级</option>
-                        </optgroup>
-                    </select>
-                </div>
-
-                <div>
-                    <div class="section-title">选择知识点</div>
-                    <select id="topicSelect" style="margin-bottom: 10px;">
-                        <option value="">-- 请先选择科目和年级 --</option>
-                    </select>
-                    <div id="aiHintText" style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px;">
-                        找不到知识点？输入关键词或句子，AI帮你生成
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="customTopicInput" placeholder="关键词或描述句子" style="flex: 1;">
-                        <button class="btn-demo" id="aiGenerateBtn" style="width: 100px;"
-                            onclick="generateTopicSuggestions()">AI生成</button>
-                    </div>
-                    <select id="aiTopicSelect" style="display: none; margin-top: 10px;">
-                        <option value="">-- AI生成的知识点备选 --</option>
-                    </select>
-                </div>
-
-                <div>
-                    <div class="section-title">试卷配置</div>
-                    <div class="control-row" style="align-items: center; justify-content: space-between;">
-                        <label style="font-size: 14px;">试卷难度设置</label>
-                        <div style="display: flex; align-items: center; gap: 10px; width: 65%;">
-                            <input type="range" id="difficulty" min="1" max="10" value="5" style="flex: 1;"
-                                oninput="updateDifficultyDisplay()">
-                            <span id="difficultyValue"
-                                style="font-weight: bold; color: var(--line-blue); min-width: 25px;">5</span>
-                        </div>
-                    </div>
-                    <div id="difficultyHint"
-                        style="margin-top: 6px; font-size: 12px; color: var(--line-blue); line-height: 1.5;">
-                        Lv5：中档综合，明显高于校内周测，开始出现多步骤推理。
-                    </div>
-                    <div class="control-row" style="margin-top: 10px;">
-                        <label style="font-size: 14px; width: 100px;">试卷类型</label>
-                        <select id="examType" style="flex:1">
-                            <option value="quiz">随堂小测</option>
-                            <option value="unit">单元测试</option>
-                            <option value="midterm">期中考试</option>
-                            <option value="final" selected>期末考试</option>
-                            <option value="mock">模拟考试</option>
-                        </select>
-                    </div>
-                    <div class="control-row" style="margin-top: 10px;">
-                        <label style="font-size: 14px; width: 100px;">试卷页数</label>
-                        <select id="pageCount" style="flex:1">
-                            <option value="1" selected>1页</option>
-                            <option value="2">2页</option>
-                            <option value="3">3页</option>
-                            <option value="4">4页</option>
-                            <option value="5">5页</option>
-                            <option value="6">6页</option>
-                            <option value="7">7页</option>
-                            <option value="8">8页</option>
-                            <option value="9">9页</option>
-                            <option value="10">10页</option>
-                        </select>
-                    </div>
-                    <div class="control-row" style="margin-top: 10px;">
-                        <label style="font-size: 14px; width: 100px;">题目数量</label>
-                        <select id="questionCount" style="flex:1">
-                            <option value="12">12题</option>
-                            <option value="15">15题</option>
-                            <option value="18">18题</option>
-                            <option value="21" selected>21题（推荐）</option>
-                            <option value="24">24题</option>
-                            <option value="27">27题</option>
-                            <option value="30">30题</option>
-                            <option value="36">36题</option>
-                            <option value="42">42题</option>
-                        </select>
-                    </div>
-                    <div class="control-row" style="margin-top: 10px;">
-                        <label style="font-size: 14px; display:flex; align-items:center; gap:5px;">
-                            <input type="checkbox" id="showAnswer" style="width:auto;"> 显示试卷答案和解析
-                        </label>
-                    </div>
-                </div>
-
-                <button class="btn-gen" id="generateBtn">
-                    <span>⚡ 开始制作试卷</span>
+                <button class="btn-gen" id="generateBtn" style="display: none;">
+                    <span>开始生成试卷</span>
                 </button>
+
+                <input type="hidden" id="subject" value="数学">
+                <input type="hidden" id="grade" value="高中一年级">
+                <input type="hidden" id="difficulty" value="5">
+                <input type="hidden" id="examType" value="final">
+                <input type="hidden" id="pageCount" value="1">
+                <input type="hidden" id="questionCount" value="9">
+                <input type="checkbox" id="showAnswer" checked hidden>
+
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <button class="btn-demo" id="exportPdfBtn" style="flex: 1;">📄 导出PDF</button>
                     <button class="btn-demo" id="exportWordBtn" style="flex: 1;">📝 导出Word</button>
@@ -808,14 +815,14 @@
 
                 <div class="a4-paper" id="paper">
                     <div class="exam-header">
-                        <div class="exam-main-title" id="paperMainTitle">2026年普通高等学校招生全国统一考试</div>
+                        <div class="exam-main-title" id="paperMainTitle">错题克星专项训练卷</div>
                         <div class="exam-title" id="paperTitle">数学试卷</div>
                         <div class="exam-meta" id="paperMeta">（考试时间120分钟，满分150分）</div>
                     </div>
 
                     <div id="examContent">
                         <div style="text-align: center; color: #999; padding-top: 100px;">
-                            试卷等待生成中...<br>请输入知识点并点击生成
+                            试卷等待生成中...<br>请先在左侧上传错题并完成分析
                         </div>
                     </div>
 
@@ -830,7 +837,7 @@
 
     <!-- 定制开发页面 -->
     <div class="custom-page" id="customPage">
-        <span class="back-btn" onclick="hideCustomPage()">← 返回试卷工厂</span>
+        <span class="back-btn" onclick="hideCustomPage()">← 返回错题克星</span>
 
         <h1 class="custom-title">🚀 AI功能定制服务</h1>
 
@@ -1207,7 +1214,6 @@
 
         function initCreditsSystem() {
             loadSettings();
-            onSubjectOrGradeChange();
         }
 
         // ========== 知识库 ==========
@@ -1312,9 +1318,13 @@
 
         // 更新知识点下拉框
         function onSubjectOrGradeChange() {
+            const topicSelect = document.getElementById('topicSelect');
+            if (!topicSelect) {
+                saveSettings();
+                return;
+            }
             const subject = document.getElementById('subject').value;
             const grade = document.getElementById('grade').value;
-            const topicSelect = document.getElementById('topicSelect');
 
             topicSelect.innerHTML = '<option value="">-- 请选择知识点 --</option>';
             const defaultTopicOption = document.createElement('option');
@@ -1338,8 +1348,13 @@
 
         // 更新难度系数显示
         function updateDifficultyDisplay() {
-            const value = document.getElementById('difficulty').value;
-            document.getElementById('difficultyValue').textContent = value;
+            const difficultyEl = document.getElementById('difficulty');
+            if (!difficultyEl) return;
+            const value = difficultyEl.value;
+            const difficultyValueEl = document.getElementById('difficultyValue');
+            if (difficultyValueEl) {
+                difficultyValueEl.textContent = value;
+            }
             const profile = getDifficultyProfile(value);
             const hintEl = document.getElementById('difficultyHint');
             if (hintEl) {
@@ -1350,7 +1365,9 @@
 
         // AI生成知识点建议
         async function generateTopicSuggestions() {
-            const keyword = document.getElementById('customTopicInput').value.trim();
+            const customTopicInput = document.getElementById('customTopicInput');
+            if (!customTopicInput) return;
+            const keyword = customTopicInput.value.trim();
             if (!keyword) {
                 alert('请输入关键词或描述句子');
                 return;
@@ -1361,6 +1378,7 @@
             const aiSelect = document.getElementById('aiTopicSelect');
             const aiBtn = document.getElementById('aiGenerateBtn');
             const hintText = document.getElementById('aiHintText');
+            if (!aiSelect || !aiBtn || !hintText) return;
 
             aiSelect.innerHTML = '<option value="">正在生成...</option>';
             aiSelect.style.display = 'block';
@@ -1410,53 +1428,74 @@
 
         // 获取选中的知识点
         function getSelectedTopic() {
-            const topicSelect = document.getElementById('topicSelect').value;
-            const aiTopicSelect = document.getElementById('aiTopicSelect').value;
-            const customTopic = document.getElementById('customTopicInput').value.trim();
+            const topicSelect = document.getElementById('topicSelect')?.value || '';
+            const aiTopicSelect = document.getElementById('aiTopicSelect')?.value || '';
+            const customTopic = document.getElementById('customTopicInput')?.value?.trim() || '';
 
             return aiTopicSelect || topicSelect || customTopic || '';
         }
 
         // 保存设置
         function saveSettings() {
+            const subjectEl = document.getElementById('subject');
+            const gradeEl = document.getElementById('grade');
+            const difficultyEl = document.getElementById('difficulty');
+            const examTypeEl = document.getElementById('examType');
+            const pageCountEl = document.getElementById('pageCount');
+            const questionCountEl = document.getElementById('questionCount');
+            const showAnswerEl = document.getElementById('showAnswer');
             const settings = {
-                subject: document.getElementById('subject').value,
-                grade: document.getElementById('grade').value,
-                difficulty: document.getElementById('difficulty').value,
-                examType: document.getElementById('examType').value,
-                pageCount: document.getElementById('pageCount').value,
-                questionCount: document.getElementById('questionCount').value,
-                showAnswer: document.getElementById('showAnswer').checked
+                subject: subjectEl?.value,
+                grade: gradeEl?.value,
+                difficulty: difficultyEl?.value,
+                examType: examTypeEl?.value,
+                pageCount: pageCountEl?.value,
+                questionCount: questionCountEl?.value,
+                showAnswer: Boolean(showAnswerEl?.checked)
             };
             localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
         }
 
         // 加载设置
         function loadSettings() {
+            const subjectEl = document.getElementById('subject');
+            const gradeEl = document.getElementById('grade');
+            const difficultyEl = document.getElementById('difficulty');
+            const difficultyValueEl = document.getElementById('difficultyValue');
+            const examTypeEl = document.getElementById('examType');
+            const pageCountEl = document.getElementById('pageCount');
+            const questionCountEl = document.getElementById('questionCount');
+            const showAnswerEl = document.getElementById('showAnswer');
             const saved = localStorage.getItem(SETTINGS_KEY);
             if (saved) {
                 try {
                     const settings = JSON.parse(saved);
-                    if (settings.subject) {
-                        const subjectEl = document.getElementById('subject');
-                        if ([...subjectEl.options].some(option => option.value === settings.subject)) {
+                    if (settings.subject && subjectEl) {
+                        if (subjectEl.tagName === 'SELECT') {
+                            if ([...subjectEl.options].some(option => option.value === settings.subject)) {
+                                subjectEl.value = settings.subject;
+                            }
+                        } else {
                             subjectEl.value = settings.subject;
                         }
                     }
-                    if (settings.grade) {
-                        const gradeEl = document.getElementById('grade');
-                        if ([...gradeEl.options].some(option => option.value === settings.grade)) {
+                    if (settings.grade && gradeEl) {
+                        if (gradeEl.tagName === 'SELECT') {
+                            if ([...gradeEl.options].some(option => option.value === settings.grade)) {
+                                gradeEl.value = settings.grade;
+                            }
+                        } else {
                             gradeEl.value = settings.grade;
                         }
                     }
-                    if (settings.difficulty) {
-                        document.getElementById('difficulty').value = settings.difficulty;
-                        document.getElementById('difficultyValue').textContent = settings.difficulty;
+                    if (settings.difficulty && difficultyEl) {
+                        difficultyEl.value = settings.difficulty;
+                        if (difficultyValueEl) difficultyValueEl.textContent = settings.difficulty;
                     }
-                    if (settings.examType) document.getElementById('examType').value = settings.examType;
-                    if (settings.pageCount) document.getElementById('pageCount').value = settings.pageCount;
-                    if (settings.questionCount) document.getElementById('questionCount').value = settings.questionCount;
-                    if (settings.showAnswer !== undefined) document.getElementById('showAnswer').checked = settings.showAnswer;
+                    if (settings.examType && examTypeEl) examTypeEl.value = settings.examType;
+                    if (settings.pageCount && pageCountEl) pageCountEl.value = settings.pageCount;
+                    if (settings.questionCount && questionCountEl) questionCountEl.value = settings.questionCount;
+                    if (settings.showAnswer !== undefined && showAnswerEl) showAnswerEl.checked = settings.showAnswer;
                     updateDifficultyDisplay();
                 } catch (e) {
                     console.error('加载设置失败', e);
@@ -1496,6 +1535,7 @@
         // 监听设置变化
         document.addEventListener('DOMContentLoaded', function () {
             initCreditsSystem();
+            bindWrongQuestionUploader();
 
             // 监听各个设置项变化自动保存
             ['examType', 'pageCount', 'questionCount', 'showAnswer'].forEach(id => {
@@ -1632,6 +1672,8 @@
 
         let currentPaperFileTitle = '试卷';
         let pendingFigureTasks = [];
+        let wrongQuestionContext = null;
+        let pdfJsLoadPromise = null;
 
         function getDifficultyProfile(level) {
             const safeLevel = Math.min(10, Math.max(1, Number(level) || 5));
@@ -1942,19 +1984,23 @@
             return `${sectionLabel}、${displayName}（本大题共${itemCount}题，${scoreText}${instructionText}）`;
         }
 
+        function stripYearText(text) {
+            return String(text || '')
+                .replace(/20\d{2}年?/g, '')
+                .replace(/\s{2,}/g, ' ')
+                .trim();
+        }
+
         function resolvePaperHeader(data, displayTitle) {
             const subject = document.getElementById('subject').value || '数学';
             const grade = document.getElementById('grade').value || '';
             const totalScore = toPositiveInt(data?.totalScore, 150);
             const durationMinutes = toPositiveInt(data?.durationMinutes, 120);
-            const year = toPositiveInt(data?.year, new Date().getFullYear());
             const examType = document.getElementById('examType').value;
             const examTypeName = EXAM_TYPE_NAMES[examType] || '考试';
 
-            const mainTitle = data?.paperMainTitle
-                || (grade.includes('高中')
-                    ? `${year}年普通高等学校招生全国统一考试`
-                    : `${year}年${grade}${subject}${examTypeName}`);
+            const mainTitleRaw = data?.paperMainTitle || `${grade}${subject}${examTypeName}训练卷`;
+            const mainTitle = stripYearText(mainTitleRaw) || '错题克星专项训练卷';
             const subTitle = data?.paperSubTitle || `${subject}试卷`;
             const meta = data?.paperMeta || `（考试时间${durationMinutes}分钟，满分${totalScore}分）`;
 
@@ -1969,7 +2015,7 @@
         // 预设Demo数据
         const DEMO_DATA = {
             title: "高中数学必修一 · 三角函数期末综合测试",
-            paperMainTitle: "2026年普通高等学校招生全国统一考试",
+            paperMainTitle: "错题克星专项训练卷",
             paperSubTitle: "数学试卷",
             paperMeta: "（考试时间120分钟，满分150分）",
             durationMinutes: 120,
@@ -2030,97 +2076,488 @@
             ]
         };
 
+        function extractJsonObjectFromText(content) {
+            const raw = String(content || '').trim();
+            if (!raw) {
+                throw new Error('AI未返回内容');
+            }
+            const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+            const payload = fenced ? fenced[1] : raw;
+            const objectMatch = payload.match(/\{[\s\S]*\}/);
+            if (!objectMatch) {
+                throw new Error('未识别到JSON对象');
+            }
+            return JSON.parse(objectMatch[0]);
+        }
+
+        function toSuperscriptText(source) {
+            const map = {
+                '0': '⁰',
+                '1': '¹',
+                '2': '²',
+                '3': '³',
+                '4': '⁴',
+                '5': '⁵',
+                '6': '⁶',
+                '7': '⁷',
+                '8': '⁸',
+                '9': '⁹',
+                '+': '⁺',
+                '-': '⁻',
+                '=': '⁼',
+                '(': '⁽',
+                ')': '⁾',
+                'n': 'ⁿ',
+                'i': 'ⁱ'
+            };
+            return String(source || '')
+                .split('')
+                .map(ch => map[ch] || ch)
+                .join('');
+        }
+
+        function toStudentFriendlyText(value) {
+            let text = String(value ?? '');
+            if (!text) return '';
+
+            text = text
+                .replace(/\r\n/g, '\n')
+                .replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '')
+                .replace(/�/g, '')
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '')
+                .replace(/\$(.*?)\$/g, '$1')
+                .replace(/\\\(/g, '')
+                .replace(/\\\)/g, '')
+                .replace(/\\\[/g, '')
+                .replace(/\\\]/g, '');
+
+            for (let i = 0; i < 6; i += 1) {
+                const next = text.replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, '($1)/($2)');
+                if (next === text) break;
+                text = next;
+            }
+
+            text = text
+                .replace(/\\sqrt\s*\{([^{}]+)\}/g, '√($1)')
+                .replace(/\\sum/g, 'Σ')
+                .replace(/\\times|\\cdot/g, '×')
+                .replace(/\\div/g, '÷')
+                .replace(/\\pm/g, '±')
+                .replace(/\\leq|\\le/g, '≤')
+                .replace(/\\geq|\\ge/g, '≥')
+                .replace(/\\neq/g, '≠')
+                .replace(/\\approx/g, '≈')
+                .replace(/\\to|\\rightarrow/g, '→')
+                .replace(/\\alpha/g, 'α')
+                .replace(/\\beta/g, 'β')
+                .replace(/\\gamma/g, 'γ')
+                .replace(/\\theta/g, 'θ')
+                .replace(/\\lambda/g, 'λ')
+                .replace(/\\mu/g, 'μ')
+                .replace(/\\pi/g, 'π')
+                .replace(/\\omega/g, 'ω');
+
+            text = text
+                .replace(/\^\{([^{}]+)\}/g, (_, exp) => toSuperscriptText(exp))
+                .replace(/\^([0-9+\-ni]+)/g, (_, exp) => toSuperscriptText(exp))
+                .replace(/_\{([^{}]+)\}/g, '$1')
+                .replace(/_([A-Za-z0-9\u4e00-\u9fa5]+)/g, '$1')
+                .replace(/[{}]/g, '')
+                .replace(/\\\\/g, '')
+                .replace(/[ \t]{2,}/g, ' ')
+                .replace(/[ \t]+\n/g, '\n')
+                .trim();
+
+            return text;
+        }
+
+        function normalizeTextArray(value, maxLength = 6) {
+            if (Array.isArray(value)) {
+                return value
+                    .map(item => toStudentFriendlyText(item))
+                    .filter(Boolean)
+                    .slice(0, maxLength);
+            }
+            const text = toStudentFriendlyText(value);
+            if (!text) return [];
+            return text
+                .split(/[；;。.\n、,，]/)
+                .map(item => item.trim())
+                .filter(Boolean)
+                .slice(0, maxLength);
+        }
+
+        function setAnalysisStatus(text, tone = 'normal') {
+            const statusEl = document.getElementById('analysisStatus');
+            if (!statusEl) return;
+            statusEl.classList.remove('success', 'error');
+            if (tone === 'success') statusEl.classList.add('success');
+            if (tone === 'error') statusEl.classList.add('error');
+            statusEl.textContent = text;
+        }
+
+        function setUploaderBusy(isBusy) {
+            const uploadBox = document.getElementById('wrongQuestionUploadBox');
+            const uploadTextEl = document.getElementById('uploadMainText');
+            if (!uploadBox || !uploadTextEl) return;
+            if (isBusy) {
+                uploadBox.classList.add('is-busy');
+                uploadTextEl.textContent = '正在分析错题...';
+            } else {
+                uploadBox.classList.remove('is-busy');
+                uploadTextEl.textContent = '点击上传一道错题';
+            }
+        }
+
+        async function ensurePdfJsReady() {
+            if (window.pdfjsLib) return;
+            if (!pdfJsLoadPromise) {
+                pdfJsLoadPromise = loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js')
+                    .then(() => {
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    });
+            }
+            await pdfJsLoadPromise;
+        }
+
+        function readFileAsDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('文件读取失败'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function convertPdfFirstPageToImage(file) {
+            await ensurePdfJsReady();
+            const dataBuffer = await file.arrayBuffer();
+            const pdf = await window.pdfjsLib.getDocument({ data: dataBuffer }).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 2 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const context = canvas.getContext('2d', { alpha: false });
+            await page.render({ canvasContext: context, viewport }).promise;
+            return canvas.toDataURL('image/jpeg', 0.92);
+        }
+
+        async function normalizeWrongQuestionFile(file) {
+            const mimeType = String(file?.type || '').toLowerCase();
+            const isPdf = mimeType === 'application/pdf' || /\.pdf$/i.test(file?.name || '');
+            if (isPdf) {
+                const imagePreview = await convertPdfFirstPageToImage(file);
+                return {
+                    fileName: file.name || '错题.pdf',
+                    mimeType: 'application/pdf',
+                    imageDataUrl: imagePreview,
+                    sourceType: 'pdf'
+                };
+            }
+            const imageDataUrl = await readFileAsDataUrl(file);
+            return {
+                fileName: file.name || '错题.png',
+                mimeType: mimeType || 'image/png',
+                imageDataUrl,
+                sourceType: 'image'
+            };
+        }
+
+        function normalizeWrongQuestionAnalysis(raw, fileMeta) {
+            const knowledgePoints = normalizeTextArray(raw?.knowledgePoints, 8);
+            const subject = normalizeSubject(raw?.subject || '数学') || '数学';
+            const grade = toStudentFriendlyText(raw?.grade || '高中一年级') || '高中一年级';
+            const correctAnswer = toStudentFriendlyText(raw?.correctAnswer || raw?.answer || '');
+            const explanation = toStudentFriendlyText(raw?.analysis || raw?.explanation || '');
+            const originalQuestion = toStudentFriendlyText(raw?.originalQuestion || raw?.questionText || '');
+            const hasFigureByFlag = Boolean(raw?.hasFigure);
+            const hasFigureByText = /图|坐标|函数图像|几何/.test(String(raw?.figureDescription || ''));
+            const hasFigureByQuestionText = /如图|图中|下图|坐标|几何图|函数图像/.test(originalQuestion);
+            const hasFigure = hasFigureByFlag || hasFigureByText || hasFigureByQuestionText;
+            const figureDescription = toStudentFriendlyText(raw?.figureDescription || '');
+
+            return {
+                subject,
+                grade,
+                knowledgePoints: knowledgePoints.length ? knowledgePoints : ['待模型识别的核心考点'],
+                correctAnswer: correctAnswer || '模型未给出标准答案',
+                analysis: explanation || '模型未给出详细解析',
+                hasFigure,
+                figureDescription,
+                originalQuestion: originalQuestion || `原题文件：${fileMeta.fileName}`
+            };
+        }
+
+        async function analyzeWrongQuestionFile(file) {
+            const fileNameEl = document.getElementById('uploadFileName');
+            const analysisPanelEl = document.getElementById('wrongQuestionAnalysis');
+            const generateBtn = document.getElementById('generateBtn');
+            if (fileNameEl) fileNameEl.textContent = file?.name || '未命名文件';
+            if (analysisPanelEl) {
+                analysisPanelEl.style.display = 'none';
+                analysisPanelEl.innerHTML = '';
+            }
+            if (generateBtn) generateBtn.style.display = 'none';
+            wrongQuestionContext = null;
+            setUploaderBusy(true);
+            setAnalysisStatus('正在读取文件并调用AI分析，请稍候...');
+
+            try {
+                const normalizedFile = await normalizeWrongQuestionFile(file);
+                const analysisPrompt = `你是一名资深中学教师，请分析用户上传的一道错题。
+
+请完成以下任务并严格返回JSON对象：
+1. 判断学科（subject）与推荐年级（grade）
+2. 提取考点数组（knowledgePoints，3~6条）
+3. 给出正确答案（correctAnswer）
+4. 给出详细解析（analysis）
+5. 判断原题是否依赖图形（hasFigure：true/false）
+6. 如果依赖图形，补充图形描述（figureDescription）
+7. 尽量还原题干文本（originalQuestion）
+
+必须返回JSON，字段如下：
+{
+  "subject": "数学",
+  "grade": "高中一年级",
+  "knowledgePoints": ["考点1", "考点2"],
+  "correctAnswer": "答案",
+  "analysis": "解析",
+  "hasFigure": true,
+  "figureDescription": "图形描述",
+  "originalQuestion": "题干文本"
+}`;
+
+                const response = await fetch(API_CONFIG.baseURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'text', text: analysisPrompt },
+                                { type: 'image_url', image_url: { url: normalizedFile.imageDataUrl } }
+                            ]
+                        }]
+                    })
+                });
+
+                const resData = await parseApiJsonResponse(response);
+                const content = resData?.choices?.[0]?.message?.content;
+                const rawAnalysis = extractJsonObjectFromText(content);
+                const analysis = normalizeWrongQuestionAnalysis(rawAnalysis, normalizedFile);
+                wrongQuestionContext = { file: normalizedFile, analysis };
+
+                const subjectEl = document.getElementById('subject');
+                const gradeEl = document.getElementById('grade');
+                if (subjectEl) subjectEl.value = analysis.subject;
+                if (gradeEl) gradeEl.value = analysis.grade;
+                saveSettings();
+
+                if (analysisPanelEl) {
+                    analysisPanelEl.innerHTML = `
+                        <div class="analysis-title">分析结果</div>
+                        <div class="analysis-row"><span class="analysis-label">学科/年级：</span>${escapeHtml(analysis.subject)} / ${escapeHtml(analysis.grade)}</div>
+                        <div class="analysis-row">
+                            <span class="analysis-label">识别考点：</span>
+                            <div class="analysis-chip-list">
+                                ${analysis.knowledgePoints.map(point => `<span class="analysis-chip">${escapeHtml(point)}</span>`).join('')}
+                            </div>
+                        </div>
+                        <div class="analysis-row"><span class="analysis-label">正确答案：</span>${escapeHtml(analysis.correctAnswer)}</div>
+                        <div class="analysis-row"><span class="analysis-label">题目解析：</span>${escapeHtml(analysis.analysis)}</div>
+                        ${analysis.hasFigure ? `<div class="analysis-row"><span class="analysis-label">图形要求：</span>原题含图，生成题将强制包含图形</div>` : ''}
+                    `;
+                    analysisPanelEl.style.display = 'block';
+                }
+
+                if (generateBtn) generateBtn.style.display = 'flex';
+                setAnalysisStatus('错题分析完成，点击“开始生成试卷”即可出题。', 'success');
+            } catch (error) {
+                console.error('错题分析失败:', error);
+                const friendlyError = toStudentFriendlyText(error.message || String(error)) || '未知错误';
+                setAnalysisStatus(`分析失败：${friendlyError}`, 'error');
+                alert(`错题分析失败：${friendlyError}`);
+            } finally {
+                setUploaderBusy(false);
+            }
+        }
+
+        function bindWrongQuestionUploader() {
+            const uploadBox = document.getElementById('wrongQuestionUploadBox');
+            const fileInput = document.getElementById('wrongQuestionFileInput');
+            if (!uploadBox || !fileInput) return;
+
+            const triggerChooseFile = () => {
+                if (uploadBox.classList.contains('is-busy')) return;
+                fileInput.click();
+            };
+
+            uploadBox.addEventListener('click', triggerChooseFile);
+            uploadBox.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    triggerChooseFile();
+                }
+            });
+
+            fileInput.addEventListener('change', async (event) => {
+                const file = event.target.files && event.target.files[0];
+                if (!file) return;
+                const fileName = String(file.name || '').toLowerCase();
+                const supportType = ['image/png', 'image/jpeg', 'application/pdf'].includes(file.type)
+                    || fileName.endsWith('.png')
+                    || fileName.endsWith('.jpg')
+                    || fileName.endsWith('.jpeg')
+                    || fileName.endsWith('.pdf');
+                if (!supportType) {
+                    alert('仅支持 PNG、JPG、PDF 文件');
+                    event.target.value = '';
+                    return;
+                }
+                await analyzeWrongQuestionFile(file);
+                event.target.value = '';
+            });
+        }
+
+        function normalizeGeneratedPaper(rawData, analysis) {
+            const hasFigureRequired = Boolean(analysis?.hasFigure);
+            const figureDesc = toStudentFriendlyText(analysis?.figureDescription || '')
+                || `请依据“${analysis?.knowledgePoints?.[0] || '核心考点'}”绘制清晰图形`;
+            const groupBlueprints = [
+                { title: '相似题', instruction: '与原题思路相似，但问题情境和条件要有实质变化。' },
+                { title: '变式题', instruction: '基于原题做结构变化，考查迁移能力。' },
+                { title: '综合应用题', instruction: '结合真实生活场景，体现综合应用。' }
+            ];
+
+            const groups = groupBlueprints.map((blueprint, groupIndex) => {
+                const sourceGroup = Array.isArray(rawData?.questions) ? rawData.questions[groupIndex] || {} : {};
+                const sourceItems = Array.isArray(sourceGroup.items) ? sourceGroup.items : [];
+                const items = [];
+
+                for (let i = 0; i < 3; i += 1) {
+                    const sourceItem = sourceItems[i] || {};
+                    const index = groupIndex * 3 + i + 1;
+                    const cleanedStem = toStudentFriendlyText(sourceItem.stem || '');
+                    const baseStem = cleanedStem
+                        || `${blueprint.title}第${i + 1}题：围绕“${analysis?.knowledgePoints?.[0] || '核心考点'}”设计题目。`;
+                    const item = {
+                        index,
+                        score: toPositiveInt(sourceItem.score, 10),
+                        answerSpaceLines: Math.min(14, Math.max(6, toPositiveInt(sourceItem.answerSpaceLines, 8))),
+                        stem: baseStem
+                    };
+
+                    if (hasFigureRequired) {
+                        item.figure = toStudentFriendlyText(sourceItem.figure || '') || figureDesc;
+                        if (!/^如图所示/.test(item.stem)) {
+                            item.stem = `如图所示，${item.stem}`;
+                        }
+                    } else if (sourceItem.figure) {
+                        item.figure = toStudentFriendlyText(sourceItem.figure);
+                    }
+
+                    items.push(item);
+                }
+
+                return {
+                    type: 'qa',
+                    sectionName: blueprint.title,
+                    title: `${getSectionLabel(groupIndex)}、${blueprint.title}（本大题共3题，每题10分，共30分。${blueprint.instruction}）`,
+                    perQuestionScore: 10,
+                    totalScore: 30,
+                    instruction: blueprint.instruction,
+                    items
+                };
+            });
+
+            const answers = normalizeTextArray(rawData?.answers, 20);
+            const ensuredAnswers = [];
+            for (let i = 0; i < 9; i += 1) {
+                const fromAi = toStudentFriendlyText(answers[i] || '');
+                ensuredAnswers.push(fromAi || `${i + 1}. 参考答案待补充 [解析] 可根据课堂讲解完善。`);
+            }
+
+            return {
+                title: `${toStudentFriendlyText(analysis.grade)}${toStudentFriendlyText(analysis.subject)} · 错题同源训练卷`,
+                paperMainTitle: '错题克星专项训练卷',
+                paperSubTitle: `${analysis.subject}试卷`,
+                paperMeta: '（共9题，建议作答时间40分钟）',
+                durationMinutes: 40,
+                totalScore: 90,
+                questions: groups,
+                answers: ensuredAnswers
+            };
+        }
+
         async function generateExam() {
-            loadingEl.style.display = 'flex';
-
-            const subject = document.getElementById('subject').value;
-            const grade = document.getElementById('grade').value;
-            const topic = getSelectedTopic();
-            const difficulty = parseInt(document.getElementById('difficulty').value);
-            const examType = document.getElementById('examType').value;
-            const pageCount = parseInt(document.getElementById('pageCount').value);
-            const questionCount = parseInt(document.getElementById('questionCount').value);
-
-            if (!topic) {
-                alert("请选择或输入知识点！");
-                loadingEl.style.display = 'none';
+            if (!wrongQuestionContext?.analysis) {
+                alert('请先上传并完成错题分析');
                 return;
             }
 
-            const normalizedSubject = normalizeSubject(subject);
-            const examTypeName = EXAM_TYPE_NAMES[examType] || '考试';
-            const difficultyProfile = getDifficultyProfile(difficulty);
-            const difficultyDesc = difficultyProfile.hint;
-            const { subjectSchema, plans } = buildSubjectSectionPlans(normalizedSubject, questionCount);
-            const qaTotalCount = plans
-                .filter(section => section.type === 'qa')
-                .reduce((sum, section) => sum + section.count, 0);
-            const requiredQaFigureCount = normalizedSubject === '数学'
-                ? Math.min(2, Math.max(1, qaTotalCount))
-                : 0;
-            const qaFigureRule = requiredQaFigureCount > 0
-                ? `解答题中至少${requiredQaFigureCount}道必须是“如图所示”的带图形题。`
-                : '如题目需要图示推理，请提供明确figure字段与图形描述。';
-            const sectionRequirementText = plans
-                .map((section, idx) => `${idx + 1}. ${section.name}：${section.count}题（${section.instruction}）`)
-                .join('\n');
-            const exampleGroups = buildQuestionExampleGroups(plans, requiredQaFigureCount);
-            const formulaRule = normalizedSubject === '数学'
-                ? `【重要 - 数学公式格式】：
-- 禁止使用LaTeX格式（如 $\\frac{}{}$、$\\sqrt{}$、$\\times$ 等）
-- 必须使用普通文字和Unicode符号表示数学：
-  * 分数用斜杠：如 "x²/4"
-  * 根号用文字或符号：如 "√3" 或 "根号3"
-  * 乘号用 × 或 · ：如 "2×3"
-  * 指数用上标符号：如 "x²" "y³"
-  * π用文字"π"`
-                : `【文字规范】：
-- 题目和选项需使用自然语言完整表达，不要使用占位符。`;
+            loadingEl.style.display = 'flex';
+            const loadingHint = loadingEl.querySelector('div:last-child');
+            if (loadingHint) {
+                loadingHint.textContent = '正在根据错题考点生成相似题、变式题和综合应用题';
+            }
+
+            const analysis = wrongQuestionContext.analysis;
+            const subject = normalizeSubject(analysis.subject || '数学');
+            const grade = String(analysis.grade || '高中一年级');
+            const figureRule = analysis.hasFigure
+                ? '原题包含图形，全部9道题都必须包含figure字段，并给出可绘制的详细图形描述。'
+                : '按题意决定是否加图；若需要图形，figure字段必须清晰可绘制。';
 
             try {
-                const prompt = `你是一个${grade}${subject}资深教师。请出一份关于"${topic}"的${examTypeName}。
+                const prompt = `你是${grade}${subject}教研组长。请基于以下错题分析结果，生成一份9题训练卷。
 
-【试卷要求】：
-- 难度系数：${difficulty}/10，${difficultyDesc}
-- 难度强化要求：${difficultyProfile.prompt}
-- 页数要求：${pageCount}页A4纸（每页约40-45行内容）
-- 试卷类型：${examTypeName}
-- 科目题型规范：${subjectSchema.note}
-- 版式要求：严格对齐“高考数学空白卷”样式，包含三行标题、题型说明、分值标注、解答题留白。
-- 总题量：${questionCount}题（按该科目高考题型分配）
+【错题信息】
+- 原题：${analysis.originalQuestion}
+- 识别考点：${analysis.knowledgePoints.join('、')}
+- 正确答案：${analysis.correctAnswer}
+- 解题解析：${analysis.analysis}
 
-【题型要求（按科目高考结构）】：
-${sectionRequirementText}
+【出题要求】
+1. 必须输出三大题，每类3题，总计9题。
+2. 第一类：相似题3题。要求与原题思路接近，但条件、问法和情境不能只是改数字。
+3. 第二类：变式题3题。要求在结构、条件或设问上有明显变化，体现迁移。
+4. 第三类：综合应用题3题。要求基于考点结合生活真实场景，体现应用能力。
+5. ${figureRule}
+6. 每题都给出可判分答案，解析要点清晰。
+7. 只返回JSON，不要任何多余文字。
 
-【图片要求 - 非常重要】：
-- 如果题目需要配图，请在该题目中添加"figure"字段
-- figure字段必须包含详细且可绘制的图形描述
-- ${qaFigureRule}
-- 描述要具体明确，包括：
-  * 几何图形：点的名称、边的关系、角度标注（如"直角三角形ABC，其中角B为直角，AB=3，BC=4"）
-  * 立体图形：形状、堆叠方式、数量（如"3×3×2的立方体堆叠，共18个小立方体"）
-  * 函数图像：函数类型、关键点（如"在坐标系中画出y=x²的抛物线，顶点在原点"）
-  * 实物图形：用哪些选项、物品特征（如"四个物品：A是圆形足球，B是长方体书本，C是正方体魔方，D是圆柱形茶叶罐"）
-- 不要使用模糊描述如"如图所示"，必须具体说明图形内容
-
-${formulaRule}
-
-【其他要求】：
-- 每道题目的stem字段必须包含完整的题目内容
-- choice类型的items必须提供4个完整options
-- qa类型的items必须返回score（分值）与answerSpaceLines（建议留白行数，4~14行）
-- 不要返回空字段或undefined
-
-要求严格返回以下JSON格式：
+【JSON格式】
 {
-    "title": "${grade}${subject} · ${examTypeName}",
-    "paperMainTitle": "2026年普通高等学校招生全国统一考试",
-    "paperSubTitle": "${subject}试卷",
-    "paperMeta": "（考试时间120分钟，满分150分）",
-    "durationMinutes": 120,
-    "totalScore": 150,
-    "questions": ${JSON.stringify(exampleGroups, null, 4)},
-    "answers": ["1. 示例答案 [解析] 示例解析"]
+  "questions": [
+    {
+      "type": "qa",
+      "sectionName": "相似题",
+      "items": [
+        { "index": 1, "score": 10, "answerSpaceLines": 8, "stem": "题干", "figure": "图形描述(可选)" }
+      ]
+    },
+    {
+      "type": "qa",
+      "sectionName": "变式题",
+      "items": [
+        { "index": 4, "score": 10, "answerSpaceLines": 8, "stem": "题干", "figure": "图形描述(可选)" }
+      ]
+    },
+    {
+      "type": "qa",
+      "sectionName": "综合应用题",
+      "items": [
+        { "index": 7, "score": 10, "answerSpaceLines": 8, "stem": "题干", "figure": "图形描述(可选)" }
+      ]
+    }
+  ],
+  "answers": [
+    "1. 标准答案 [解析] 解析要点"
+  ]
 }`;
 
                 const response = await fetch(API_CONFIG.baseURL, {
@@ -2134,23 +2571,19 @@ ${formulaRule}
                 });
 
                 const resData = await parseApiJsonResponse(response);
-                const content = resData.choices[0].message.content;
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    const data = JSON.parse(jsonMatch[0]);
-                    if (requiredQaFigureCount > 0) {
-                        ensureQaFigureCoverage(data, normalizedSubject, requiredQaFigureCount);
-                    }
-                    renderExam(data);
-                } else {
-                    alert("AI生成格式错误，请重试");
-                }
+                const content = resData?.choices?.[0]?.message?.content;
+                const rawPaper = extractJsonObjectFromText(content);
+                const normalizedPaper = normalizeGeneratedPaper(rawPaper, analysis);
+                renderExam(normalizedPaper);
             } catch (e) {
                 console.error(e);
-                alert("AI出题生成失败，请重试");
+                alert(`AI出题生成失败：${e.message || '请重试'}`);
+            } finally {
+                loadingEl.style.display = 'none';
+                if (loadingHint) {
+                    loadingHint.textContent = '正在构建知识图谱与试题结构';
+                }
             }
-
-            loadingEl.style.display = 'none';
         }
 
         async function renderExam(data) {
@@ -2641,9 +3074,12 @@ ${formulaRule}
         document.getElementById('exportPdfBtn').addEventListener('click', exportToPdf);
         document.getElementById('exportWordBtn').addEventListener('click', exportToWord);
 
-        document.getElementById('showAnswer').addEventListener('change', (e) => {
-            answerAreaEl.style.display = e.target.checked ? 'block' : 'none';
-        });
+        const showAnswerEl = document.getElementById('showAnswer');
+        if (showAnswerEl) {
+            showAnswerEl.addEventListener('change', (e) => {
+                answerAreaEl.style.display = e.target.checked ? 'block' : 'none';
+            });
+        }
     </script>
 
   <script src="/shared-global-nav.js" defer></script>

@@ -32,7 +32,18 @@ loadLocalEnv();
 
 const DEFAULT_MODEL = process.env.LINAPI_MODEL || 'gemini-3-flash-preview';
 const API_KEY = process.env.LINAPI_API_KEY || process.env.OPENAI_API_KEY || '';
-const BASE_URL = process.env.LINAPI_BASE_URL || 'https://api.linapi.net/v1';
+const RAW_BASE_URL = process.env.LINAPI_BASE_URL || 'https://api.linapi.net/v1/chat/completions';
+
+function normalizeOpenAIBaseUrl(input) {
+    const raw = String(input || '').trim();
+    if (!raw) return 'https://api.linapi.net/v1';
+    // OpenAI SDK 会自行拼接 /chat/completions，这里兼容用户直接填写完整端点的情况
+    return raw
+        .replace(/\/+$/g, '')
+        .replace(/\/chat\/completions$/i, '');
+}
+
+const BASE_URL = normalizeOpenAIBaseUrl(RAW_BASE_URL);
 
 const client = API_KEY
     ? new OpenAI({
